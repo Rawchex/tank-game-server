@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>5v5 Tank Battle</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Inline additions for the new layout (ideally goes to style.css, but placing here for immediate testing) */
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #2c3e50;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #lobby-container {
+      padding: 50px;
+    }
+
+    #game-container {
+      position: relative;
+      display: none;
+    }
+
+    #hud {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    #scoreboard-ui {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 8px;
+      min-width: 200px;
+    }
+
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    #skills-ui {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      gap: 20px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 15px;
+      border-radius: 12px;
+    }
+
+    .skill-box {
+      width: 50px;
+      height: 50px;
+      border: 2px solid #7f8c8d;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 20px;
+      position: relative;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .skill-box.ready {
+      border-color: #2ecc71;
+      color: #2ecc71;
+    }
+
+    .skill-box.cooldown {
+      border-color: #e74c3c;
+      color: #e74c3c;
+      opacity: 0.5;
+    }
+
+    .skill-tooltip {
+      visibility: hidden;
+      position: absolute;
+      bottom: 65px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #34495e;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      color: white;
+      z-index: 11;
+    }
+
+    .skill-box:hover .skill-tooltip {
+      visibility: visible;
+    }
+
+    canvas {
+      background: #34495e;
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="lobby-container">
+    <h1>5v5 Tank Battle Lobby</h1>
+    <div style="margin-bottom: 20px; text-align: center;">
+      <label for="player-name">Adınız:</label>
+      <input type="text" id="player-name" placeholder="Oyuncu Adı" maxlength="15"
+        style="padding: 5px; font-size: 16px;">
+    </div>
+    <div id="lobby-info">
+      <div>
+        <h3>Red Team</h3>
+        <ul id="red-players"></ul>
+        <button id="join-red">Join Red</button>
+        <button id="add-bot-red" style="margin-left:5px;">Add God AI</button>
+        <button id="remove-bot-red" style="margin-left:5px;">Kick God AI</button>
+      </div>
+      <div>
+        <h3>Blue Team</h3>
+        <ul id="blue-players"></ul>
+        <button id="join-blue">Join Blue</button>
+        <button id="add-bot-blue" style="margin-left:5px;">Add God AI</button>
+        <button id="remove-bot-blue" style="margin-left:5px;">Kick God AI</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-container">
+    <div id="hud">
+      <h2>Team Score</h2>
+      <div>Kırmızı: <span id="score-red" style="color:#e74c3c; font-weight:bold;">0</span></div>
+      <div>Mavi: <span id="score-blue" style="color:#3498db; font-weight:bold;">0</span></div>
+    </div>
+
+    <div id="scoreboard-ui">
+      <h3 style="margin-top:0; text-align:center;">🏆 Leaderboard</h3>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <div id="skills-ui">
+      <div id="skill-z" class="skill-box ready">Z
+        <span class="skill-tooltip">Heal (Can basar)</span>
+      </div>
+      <div id="skill-x" class="skill-box ready">X
+        <span class="skill-tooltip">Speed Boost (Hızlandırır)</span>
+      </div>
+      <div id="skill-c" class="skill-box ready">C
+        <span class="skill-tooltip">Rapid Fire (Seri Ateş)</span>
+      </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="input.js"></script>
+  <script src="render.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
