@@ -68,16 +68,36 @@ function renderGame(state, myId) {
     ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw map bounds background
-    ctx.translate(-window.cameraOffset.x, -window.cameraOffset.y);
-    ctx.fillStyle = '#1a252f';
+    // THEME SELECTION & BACKGROUND
+    let sMap = state.sandboxMap || window.dynamicSandboxData || { 
+        theme: 'grass', walls: [], crates: [], bushes: [], tires: [], 
+        barrels: [], speedPads: [], spawns: [] 
+    };
+    let theme = sMap.theme || 'grass';
+    if (theme === 'grass') ctx.fillStyle = '#1e824c';
+    else if (theme === 'desert') ctx.fillStyle = '#d35400';
+    else if (theme === 'space') ctx.fillStyle = '#1a1a2e';
+    else ctx.fillStyle = '#1a252f';
+
     ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
     // Draw map border lines
-    ctx.strokeStyle = '#e74c3c';
+    ctx.strokeStyle = theme === 'space' ? '#3498db' : '#e74c3c';
     ctx.lineWidth = 10;
     ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-    const sMap = state.sandboxMap || window.dynamicSandboxData || { walls: [], crates: [], bushes: [], tires: [] };
+    function drawRotatedRect(obj, color, strokeColor = null) {
+        ctx.save();
+        ctx.translate(obj.x + obj.width / 2, obj.y + obj.height / 2);
+        if (obj.rotation) ctx.rotate(obj.rotation * Math.PI / 180);
+        ctx.fillStyle = color;
+        ctx.fillRect(-obj.width / 2, -obj.height / 2, obj.width, obj.height);
+        if (strokeColor) {
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-obj.width / 2 + 2, -obj.height / 2 + 2, obj.width - 4, obj.height - 4);
+        }
+        ctx.restore();
+    }
     
     // Editor ızgarası (Grid)
     if (window.isEditingMap) {
@@ -102,29 +122,64 @@ function renderGame(state, myId) {
     
     // Dinamik Duvarları Çiz
     ctx.fillStyle = '#95a5a6';
+    // Dinamik Duvarları Çiz
     for (let w of (sMap.walls || [])) {
-        ctx.fillRect(w.x, w.y, w.width, w.height);
-        ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2;
-        ctx.strokeRect(w.x+2, w.y+2, w.width-4, w.height-4);
+        drawRotatedRect(w, '#95a5a6', '#bdbdbd');
     }
 
     // Dinamik Kutuları (Crates) Çiz
     for (let c of (sMap.crates || [])) {
-        ctx.fillStyle = '#d35400';
-        ctx.fillRect(c.x, c.y, c.width, c.height);
-        ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2;
-        ctx.strokeRect(c.x + 4, c.y + 4, c.width - 8, c.height - 8);
+        drawRotatedRect(c, '#d35400', '#e67e22');
     }
 
     // Dinamik Lastikleri (Tires) Çiz
     for (let t of (sMap.tires || [])) {
+        ctx.save();
+        ctx.translate(t.x + t.width/2, t.y + t.height/2);
         ctx.fillStyle = '#2c3e50';
         ctx.beginPath();
-        ctx.arc(t.x + t.width/2, t.y + t.height/2, t.width/2 - 2, 0, Math.PI * 2);
+        ctx.arc(0, 0, t.width/2 - 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.lineWidth = 4;
         ctx.strokeStyle = '#34495e';
         ctx.stroke();
+        ctx.restore();
+    }
+
+    // Dinamik Çalılar (Bushes)
+    for (let b of (sMap.bushes || [])) {
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        drawRotatedRect(b, '#0a3d1d');
+        ctx.restore();
+    }
+
+    // Patlayan Variller (Barrels)
+    for (let br of (sMap.barrels || [])) {
+        drawRotatedRect(br, '#c0392b', '#ff4d4d');
+        ctx.fillStyle = 'white';
+        ctx.font = '10px Arial';
+        ctx.fillText("EXPL", br.x + 5, br.y + 25);
+    }
+
+    // Hız Pedleri (SpeedPads)
+    for (let sp of (sMap.speedPads || [])) {
+        ctx.save();
+        ctx.globalAlpha = 0.4;
+        drawRotatedRect(sp, '#2ecc71', '#58d68d');
+        ctx.restore();
+    }
+
+    // Doğma Noktaları (Spawns)
+    for (let sn of (sMap.spawns || [])) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        let color = sn.type === 'Red' ? '#e74c3c' : '#3498db';
+        drawRotatedRect(sn, color);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px Arial';
+        ctx.fillText(sn.type + " SPAWN", sn.x + 2, sn.y + 25);
+        ctx.restore();
     }
 
     // Mermileri Çiz (Ateş edildiği andaki açıyla ilerliyor)

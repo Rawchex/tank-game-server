@@ -161,12 +161,27 @@
     <!-- Map Editor Toolbar (In Game) -->
     <div id="map-editor-toolbar" style="display:none; position: fixed; top: 80px; left: 10px; z-index: 20;" class="glass-panel">
         <h3 style="margin:0 0 10px 0;">🛠️ Sandbox</h3>
-        <p class="subtext" style="max-width: 200px; font-size: 11px;">Right-click to place. Shift+Right-click to delete.</p>
-        <div class="editor-tools" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
+        <div class="editor-tools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px;">
             <button class="editor-tool active" data-tool="wall">🧱 Wall</button>
-            <button class="editor-tool" data-tool="crate">📦 Breakable Crate</button>
-            <button class="editor-tool" data-tool="bush">🌿 Bush (Hide)</button>
-            <button class="editor-tool" data-tool="tire">🛞 Tires</button>
+            <button class="editor-tool" data-tool="crate">📦 Crate</button>
+            <button class="editor-tool" data-tool="bush">🌿 Bush</button>
+            <button class="editor-tool" data-tool="tire">🛞 Tire</button>
+            <button class="editor-tool" data-tool="barrel" style="color:#e67e22;">💥 Barrel</button>
+            <button class="editor-tool" data-tool="speedPad" style="color:#2ecc71;">⚡ Speed</button>
+            <button class="editor-tool" data-tool="redSpawn" style="color:#e74c3c;">🚩 Red S.</button>
+            <button class="editor-tool" data-tool="blueSpawn" style="color:#3498db;">🚩 Blue S.</button>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:11px; display:block; margin-bottom:3px;">🌍 Theme</label>
+            <select id="editor-theme-select" class="styled-input" style="padding: 5px; font-size: 11px; margin-bottom:0;">
+                <option value="grass">Grassland</option>
+                <option value="desert">Desert Sands</option>
+                <option value="space">Deep Space</option>
+            </select>
+        </div>
+        <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; font-size: 10px; margin-bottom: 10px; color: #f1c40f;">
+            <span id="editor-rot-display">Rotation: 0°</span> (Press <strong>'R'</strong>)<br>
+            Undo: <strong>Ctrl+Z</strong>
         </div>
         <div style="display:flex; flex-direction:column; gap:8px;">
             <select id="save-layout-slot" class="styled-input" style="padding: 5px; font-size: 12px; margin-bottom:0;">

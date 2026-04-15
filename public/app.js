@@ -408,9 +408,17 @@ window.currentEditorTool = 'wall';
 document.querySelectorAll('.editor-tool').forEach(btn => {
     btn.addEventListener('click', (e) => {
         document.querySelectorAll('.editor-tool').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        window.currentEditorTool = e.target.getAttribute('data-tool');
+        const target = e.currentTarget;
+        target.classList.add('active');
+        window.currentEditorTool = target.getAttribute('data-tool');
     });
+});
+
+document.getElementById('editor-theme-select').addEventListener('change', (e) => {
+    if (!isRoomAdmin) return;
+    if (window.saveToUndo) window.saveToUndo();
+    window.dynamicSandboxData.theme = e.target.value;
+    socket.emit('sandbox-update', window.dynamicSandboxData);
 });
 
 // Save Map
@@ -429,7 +437,11 @@ document.getElementById('btn-save-layout').addEventListener('click', () => {
 document.getElementById('btn-clear-map').addEventListener('click', () => {
     if (!isRoomAdmin) return;
     if (confirm("Are you sure you want to CLEAR the entire map?")) {
-        const emptyMap = { walls: [], crates: [], bushes: [], tires: [] };
+        const emptyMap = { 
+            theme: window.dynamicSandboxData.theme || 'grass',
+            walls: [], crates: [], bushes: [], tires: [], 
+            barrels: [], speedPads: [], spawns: [] 
+        };
         window.dynamicSandboxData = emptyMap;
         socket.emit('sandbox-update', emptyMap);
     }

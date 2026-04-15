@@ -11,10 +11,26 @@ class Game {
         this.FPS = 60;
 
         // Custom map dynamic support
-        this.dynamicMap = { walls: [], crates: [], bushes: [], tires: [] };
+        this.dynamicMap = { 
+            theme: 'grass',
+            walls: [], crates: [], bushes: [], tires: [],
+            barrels: [], speedPads: [], spawns: []
+        };
 
         // Start game loop
         this.loopInterval = setInterval(() => this.update(), 1000 / this.FPS);
+    }
+
+    getSpawnPos(team) {
+        if (this.dynamicMap && this.dynamicMap.spawns) {
+            const teamSpawns = this.dynamicMap.spawns.filter(s => s.type === team);
+            if (teamSpawns.length > 0) {
+                const s = teamSpawns[Math.floor(Math.random() * teamSpawns.length)];
+                return { x: s.x + s.width / 2, y: s.y + s.height / 2 };
+            }
+        }
+        const defaultSpawns = map.spawns[team] || map.spawns.Red;
+        return defaultSpawns[Math.floor(Math.random() * defaultSpawns.length)];
     }
 
     destroy() {
@@ -24,9 +40,7 @@ class Game {
     addPlayer(socket, lobbyPlayer) {
         if (!lobbyPlayer || !lobbyPlayer.team) return;
 
-        const teamSpawns = map.spawns[lobbyPlayer.team];
-        const spawnIndex = Object.keys(this.players).filter(pid => this.players[pid].team === lobbyPlayer.team).length % teamSpawns.length;
-        const spawnPos = teamSpawns[spawnIndex];
+        const spawnPos = this.getSpawnPos(lobbyPlayer.team);
 
         this.players[socket.id] = {
             x: spawnPos.x,
@@ -51,8 +65,7 @@ class Game {
 
     addBot(team) {
         if (!team) return;
-        const teamSpawns = map.spawns[team];
-        const spawnPos = teamSpawns[Math.floor(Math.random() * teamSpawns.length)];
+        const spawnPos = this.getSpawnPos(team);
         const botId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
         this.players[botId] = {
@@ -479,6 +492,15 @@ class Game {
 
             if (!canMoveY) p.y += 0; // prevent Y movement, allow X
             else p.y = nextY;
+
+            // --- SPEED PAD OVERLAP ---
+            for (let sp of (this.dynamicMap.speedPads || [])) {
+                if (this.checkCollision({ x: p.x, y: p.y, width: p.width, height: p.height }, sp)) {
+                    p.speed = 8.5; // Massive boost
+                    p.speedBoostTimer = 60; // 1 second fast burst
+                    p.isSpeedBoosted = true;
+                }
+            }
         }
 
         // Bullet updates
@@ -496,19 +518,38 @@ class Game {
                 destroyed = true;
             }
 
-            // Wall and Crate collision detection (Line to Rect)
+            // Prop collision detection
             if (!destroyed) {
-                const allWallsAndCrates = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates];
-                for (let wall of allWallsAndCrates) {
+                const allProps = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates, ...this.dynamicMap.barrels];
+                for (let wall of allProps) {
                     if (this.lineIntersectsRect(b.x - b.vx, b.y - b.vy, b.x, b.y, wall)) {
                         destroyed = true;
                         
                         // Kutu parçalanma mekaniği (Destructible crates)
-                        let isCrate = this.dynamicMap.crates.includes(wall);
-                        if (isCrate) {
+                        if (this.dynamicMap.crates.includes(wall)) {
                             this.dynamicMap.crates = this.dynamicMap.crates.filter(c => c !== wall);
-                            // Senkronizasyonu başlat (Clientlara gitsin diye)
                             this.io.to(this.roomId).emit('sandboxSync', this.dynamicMap);
+                        }
+
+                        // Varil patlama mekaniği (Explosive barrels)
+                        if (this.dynamicMap.barrels.includes(wall)) {
+                            this.dynamicMap.barrels = this.dynamicMap.barrels.filter(br => br !== wall);
+                            // AOE Damage
+                            for (let pid in this.players) {
+                                let targets = this.players[pid];
+                                if (targets.isDead) continue;
+                                let dist = Math.hypot(targets.x - (wall.x + wall.width/2), targets.y - (wall.y + wall.height/2));
+                                if (dist < 130) {
+                                    targets.health -= 60;
+                                    if (targets.health <= 0) {
+                                        targets.isDead = true; 
+                                        if (this.players[b.owner]) this.players[b.owner].score++;
+                                        this.handleRespawn(pid);
+                                    }
+                                }
+                            }
+                            this.io.to(this.roomId).emit('sandboxSync', this.dynamicMap);
+                            this.explosions.push({ x: wall.x + wall.width/2, y: wall.y + wall.height/2, color: '#e67e22' });
                         }
 
                         break;
@@ -537,17 +578,7 @@ class Game {
                                     this.players[b.owner].score++;
                                 }
 
-                                // Respawn
-                                setTimeout(() => {
-                                    if (this.players[id]) {
-                                        this.players[id].isDead = false;
-                                        this.players[id].health = 100;
-                                        const teamSpawns = map.spawns[p.team];
-                                        const spawnPos = teamSpawns[Math.floor(Math.random() * teamSpawns.length)];
-                                        this.players[id].x = spawnPos.x;
-                                        this.players[id].y = spawnPos.y;
-                                    }
-                                }, 3000);
+                                this.handleRespawn(id);
                             }
                             break;
                         }
@@ -569,6 +600,18 @@ class Game {
         });
 
         this.explosions = [];
+    }
+    handleRespawn(id) {
+        setTimeout(() => {
+            if (this.players[id]) {
+                const p = this.players[id];
+                p.isDead = false;
+                p.health = 100;
+                const spawnPos = this.getSpawnPos(p.team);
+                p.x = spawnPos.x;
+                p.y = spawnPos.y;
+            }
+        }, 3000);
     }
 }
 
