@@ -205,6 +205,10 @@ document.getElementById('leave-room-btn')?.addEventListener('click', () => {
     showScreen('main-menu-screen');
 });
 
+document.getElementById('btn-start-match')?.addEventListener('click', () => {
+    socket.emit('adminAction', { action: 'startMatch' });
+});
+
 /* --- GAME ORCHESTRATION --- */
 function startGame() {
     showScreen('game-screen');
@@ -225,18 +229,68 @@ function setupSandboxPlacement() {
 
 /* --- HUD & SCOREBOARD --- */
 socket.on('gameState', (state) => {
+    window.gameState = state; // Save for Renderer
+
+    // Screen transitions based on Match State
+    if (!window.isEditingMap) {
+        if (state.matchState === 'LOBBY' && document.getElementById('lobby-screen').style.display === 'none') {
+            showScreen('lobby-screen');
+            const overlay = document.getElementById('game-over-overlay');
+            if (overlay) overlay.style.display = 'none';
+        } else if ((state.matchState === 'STARTING' || state.matchState === 'PLAYING') && document.getElementById('game-screen').style.display === 'none') {
+            showScreen('game-screen');
+        }
+    }
+
+    // Update Round Indicator HUD
+    const rndInd = document.getElementById('round-indicator');
+    if (rndInd && state.currentRound) rndInd.innerText = `RND ${state.currentRound}`;
+
+    // Update Scores
     const redScore = document.getElementById('score-red');
-    if(redScore) redScore.innerText = state.teamScores.Red;
+    if(redScore && state.teamScores) redScore.innerText = state.teamScores.Red;
     const blueScore = document.getElementById('score-blue');
-    if(blueScore) blueScore.innerText = state.teamScores.Blue;
+    if(blueScore && state.teamScores) blueScore.innerText = state.teamScores.Blue;
     
+    const rwRed = document.getElementById('round-wins-red');
+    if (rwRed && state.roundWins) rwRed.innerText = state.roundWins.Red;
+    const rwBlue = document.getElementById('round-wins-blue');
+    if (rwBlue && state.roundWins) rwBlue.innerText = state.roundWins.Blue;
+
+    const timerObj = document.getElementById('match-timer');
+    if (timerObj && state.matchTime !== undefined) {
+        const m = Math.floor(Math.max(0, state.matchTime) / 60);
+        const s = ('0' + (Math.max(0, state.matchTime) % 60)).slice(-2);
+        timerObj.innerText = `${m}:${s}`;
+    }
+    
+    // Leaderboard
     const lb = document.getElementById('leaderboard-list');
-    if (lb) {
+    if (lb && state.players) {
         lb.innerHTML = Object.values(state.players)
             .sort((a,b) => b.score - a.score)
-            .map(p => `<div class="score-row"><span>${p.name}</span><strong>${p.score}</strong></div>`)
+            .map(p => `
+                <div class="score-row">
+                    <span style="width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${p.team==='Red'?'var(--secondary)':'var(--primary)'}">${p.name}</span>
+                    <span style="color:var(--text-dim); font-size:10px; flex:1; text-align:center;">K:${p.kills} D:${p.deaths} A:${p.assists}</span>
+                    <strong style="width:30px; text-align:right;">${p.score}</strong>
+                </div>`)
             .join('');
     }
+});
+
+socket.on('gameOver', (data) => {
+    const overlay = document.getElementById('game-over-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    const text = document.getElementById('winner-text');
+    if (text) {
+        text.innerText = data.winner === 'Draw' ? 'DRAW' : `${data.winner.toUpperCase()} VICTORIOUS`;
+        text.style.color = data.winner === 'Red' ? 'var(--secondary)' : (data.winner === 'Blue' ? 'var(--primary)' : 'white');
+    }
+    const rRed = document.getElementById('final-round-red');
+    if (rRed) rRed.innerText = data.finalScores.Red;
+    const rBlue = document.getElementById('final-round-blue');
+    if (rBlue) rBlue.innerText = data.finalScores.Blue;
 });
 
 /* --- CHAT SYSTEM --- */
@@ -295,7 +349,11 @@ document.getElementById('btn-test-map')?.addEventListener('click', () => {
     const toolbar = document.getElementById('map-editor-toolbar');
     if (toolbar) toolbar.style.display = 'none';
     socket.emit('joinTeam', { team: 'Red', name: window.myAccount.name });
-    startGame();
+    
+    // Simulate host action for immediate start in test mode
+    setTimeout(() => {
+        socket.emit('adminAction', { action: 'startMatch' });
+    }, 500);
 });
 
 // Initial Signal

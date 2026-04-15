@@ -130,9 +130,14 @@
             </div>
 
             <div id="admin-controls" style="display:none; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--glass-border);">
-                <div id="sandbox-host-panel" style="display: flex; justify-content: center; gap: 20px;">
-                    <button id="load-layout-btn" class="btn-secondary">Load Sequence</button>
-                    <button id="open-map-editor" class="btn-primary">🎨 Open Forge</button>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 15px;">
+                        <button id="btn-start-match" class="btn-primary" style="box-shadow: 0 0 20px var(--success); background: var(--success); color: black;">🚀 LAUNCH OPERATION</button>
+                    </div>
+                    <div id="sandbox-host-panel" style="display: flex; gap: 15px;">
+                        <button id="load-layout-btn" class="btn-secondary">Load Sequence</button>
+                        <button id="open-map-editor" class="btn-primary">🎨 Open Forge</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -143,12 +148,30 @@
         <canvas id="gameCanvas"></canvas>
 
         <div id="hud">
-            <div style="color: var(--secondary);">RED <span id="score-red">0</span></div>
-            <div style="color: var(--primary);">BLUE <span id="score-blue">0</span></div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span class="subtext" style="font-size: 10px;">ROUNDS</span>
+                <span id="round-wins-red" style="color: var(--secondary); font-size: 18px;">0</span>
+            </div>
+            <div style="color: var(--secondary); display: flex; flex-direction: column; align-items: center;">
+                <span>RED</span>
+                <span id="score-red" style="font-size: 32px;">0</span>
+            </div>
+            <div id="match-timer" style="color: var(--text-main); font-size: 28px; width: 80px; text-align: center;">5:00</div>
+            <div style="color: var(--primary); display: flex; flex-direction: column; align-items: center;">
+                <span>BLUE</span>
+                <span id="score-blue" style="font-size: 32px;">0</span>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <span class="subtext" style="font-size: 10px;">ROUNDS</span>
+                <span id="round-wins-blue" style="color: var(--primary); font-size: 18px;">0</span>
+            </div>
         </div>
 
         <div id="scoreboard-ui">
-            <h3 style="margin: 0 0 15px 0; font-size: 14px; text-transform: uppercase; color: var(--text-dim);">Combat Statistics</h3>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 14px; text-transform: uppercase; color: var(--text-dim);">Combat Stats</h3>
+                <span id="round-indicator" style="color: var(--warning); font-size: 12px; font-weight: bold;">RND 1</span>
+            </div>
             <div id="leaderboard-list"></div>
         </div>
 
@@ -248,6 +271,27 @@
                 <button id="cancel-create-room" class="btn-secondary" style="flex: 1;">Cancel</button>
                 <button id="confirm-create-room" class="btn-primary" style="flex: 1;">Deploy</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MATCH OVER OVERLAY -->
+    <div id="game-over-overlay" class="full-screen-modal" style="display: none;">
+        <div class="glass-panel" style="width: 700px; text-align: center; border-color: var(--primary);">
+            <h1 id="winner-text" style="font-size: 60px; margin-bottom: 10px;">VICTORY</h1>
+            <p class="subtext" style="font-size: 20px; margin-bottom: 40px;">Operation Concluded.</p>
+            
+            <div style="display: flex; justify-content: center; gap: 50px; margin-bottom: 40px;">
+                <div style="text-align: center;">
+                    <div style="color: var(--secondary); font-size: 24px;">RED WINS</div>
+                    <div id="final-round-red" style="font-size: 48px; font-weight: 800;">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--primary); font-size: 24px;">BLUE WINS</div>
+                    <div id="final-round-blue" style="font-size: 48px; font-weight: 800;">0</div>
+                </div>
+            </div>
+
+            <button id="return-to-lobby-btn" class="btn-primary" style="margin: 0 auto; width: 250px;">Return to Hub</button>
         </div>
     </div>
 

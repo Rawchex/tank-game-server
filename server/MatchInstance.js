@@ -22,9 +22,14 @@ class MatchInstance {
         this.killLimit = settings.killLimit || 15;
         this.timeRemaining = (settings.timeLimit || 5) * 60;
         this.botDiff = settings.botDiff || 'medium';
-        this.isGameOver = false;
-        this.paused = false;
-        this.teamScores = { Red: 0, Blue: 0 };
+        this.maxRounds = settings.maxRounds || 3;
+        
+        // State Machine & Rounds
+        this.matchState = 'LOBBY'; // LOBBY -> STARTING -> PLAYING -> ROUND_END -> MATCH_OVER
+        this.countdown = 0;
+        this.currentRound = 1;
+        this.roundWins = { Red: 0, Blue: 0 };
+        this.teamScores = { Red: 0, Blue: 0 }; // Current round score
         
         // Map Logic (Unified Sandbox + Static)
         this.dynamicMap = settings.layout || { 
@@ -54,7 +59,7 @@ class MatchInstance {
             width: 30, height: 30,
             angle: 0,
             isDead: false,
-            score: 0,
+            score: 0, kills: 0, deaths: 0, assists: 0,
             shieldTime: Config.SHIELD_DURATION,
             input: { w:false, a:false, s:false, d:false, fire:false }
         };
@@ -131,7 +136,7 @@ class MatchInstance {
             width: 30, height: 30,
             angle: 0,
             isDead: false,
-            score: 0,
+            score: 0, kills: 0, deaths: 0, assists: 0,
             shieldTime: Config.SHIELD_DURATION,
             input: { w:false, a:false, s:false, d:false, fire:false }
         };
@@ -154,41 +159,91 @@ class MatchInstance {
         return { x: fallback.x, y: fallback.y };
     }
 
+    startMatch() {
+        if (this.matchState !== 'LOBBY') return;
+        this.matchState = 'STARTING';
+        this.countdown = 3;
+    }
+
+    startRound() {
+        this.matchState = 'PLAYING';
+        this.teamScores = { Red: 0, Blue: 0 };
+        this.timeRemaining = (this.roomData.settings.timeLimit || 5) * 60;
+        this.bullets = [];
+        this.explosions = [];
+        
+        // Reset players to spawns
+        for (let id in this.players) {
+            const p = this.players[id];
+            const spawn = this.getSpawn(p.team);
+            p.x = spawn.x; p.y = spawn.y;
+            p.health = Config.MAX_HEALTH;
+            p.isDead = false;
+            p.shieldTime = Config.SHIELD_DURATION;
+            p.input = { w:false, a:false, s:false, d:false, fire:false };
+        }
+    }
+
     update() {
-        if (this.paused || this.isGameOver) {
-            if (this.paused) this.io.to(this.roomId).emit('gamePaused', true);
+        if (this.paused) {
+            this.io.to(this.roomId).emit('gamePaused', true);
             return;
         }
 
         // 1. Logic Timer
         this.frameCounter++;
         if (this.frameCounter >= 60) {
-            this.timeRemaining--;
             this.frameCounter = 0;
-            this.checkWinConditions();
+            
+            if (this.matchState === 'STARTING') {
+                this.countdown--;
+                if (this.countdown <= 0) this.startRound();
+            } else if (this.matchState === 'ROUND_END') {
+                this.countdown--;
+                if (this.countdown <= 0) {
+                    // Check if match over
+                    const requiredWins = Math.ceil(this.maxRounds / 2);
+                    if (this.roundWins.Red >= requiredWins || this.roundWins.Blue >= requiredWins) {
+                        this.endMatch();
+                    } else {
+                        this.currentRound++;
+                        this.matchState = 'STARTING';
+                        this.countdown = 3;
+                    }
+                }
+            } else if (this.matchState === 'PLAYING') {
+                this.timeRemaining--;
+                this.checkWinConditions();
+            }
         }
 
-        // 2. Entity Updates
-        for (let id in this.players) {
-            const p = this.players[id];
-            if (p.isDead) continue;
+        // 2. Entity Updates (Only if Playing)
+        if (this.matchState === 'PLAYING') {
+            for (let id in this.players) {
+                const p = this.players[id];
+                if (p.isDead) continue;
 
-            if (p.isBot) this.ai.update(id, p);
+                if (p.isBot) this.ai.update(id, p);
 
-            // Handle temporary effects
-            if (p.speedBoostTime > 0) p.speedBoostTime--;
-            if (p.rapidFireTime > 0) p.rapidFireTime--;
-            if (p.shieldTime > 0) p.shieldTime--;
+                // Handle temporary effects
+                if (p.speedBoostTime > 0) p.speedBoostTime--;
+                if (p.rapidFireTime > 0) p.rapidFireTime--;
+                if (p.shieldTime > 0) p.shieldTime--;
 
-            this.handlePlayerMovement(p);
-            this.handlePlayerCombat(id, p);
+                this.handlePlayerMovement(p);
+                this.handlePlayerCombat(id, p);
+            }
+
+            // 3. Bullet Updates
+            this.updateBullets();
         }
 
-        // 3. Bullet Updates
-        this.updateBullets();
-
-        // 4. State Broadcast (Engine 2.0 Optimized)
+        // 4. State Broadcast
         this.io.to(this.roomId).emit('gameState', {
+            matchState: this.matchState,
+            countdown: this.countdown,
+            currentRound: this.currentRound,
+            roundWins: this.roundWins,
             players: this.players,
             bullets: this.bullets.map(b => ({ x: b.x, y: b.y, radius: b.radius, team: b.team })),
             explosions: this.explosions,
@@ -304,34 +359,54 @@ class MatchInstance {
     handleKill(killerId, victimId) {
         const victim = this.players[victimId];
         victim.isDead = true;
+        victim.deaths++;
         if (this.players[killerId]) {
-            this.players[killerId].score++;
+            this.players[killerId].score += 100;
+            this.players[killerId].kills++;
             this.teamScores[this.players[killerId].team]++;
             this.checkWinConditions();
         }
         
-        setTimeout(() => {
-            if (this.players[victimId]) {
-                const s = this.getSpawn(victim.team);
-                victim.x = s.x; victim.y = s.y;
-                victim.health = Config.MAX_HEALTH;
-                victim.isDead = false;
-                victim.shieldTime = Config.SHIELD_DURATION;
-            }
-        }, 3000);
+        // Only respawn if match is still playing (not round end)
+        if (this.matchState === 'PLAYING') {
+            setTimeout(() => {
+                if (this.players[victimId] && this.matchState === 'PLAYING') {
+                    const s = this.getSpawn(victim.team);
+                    victim.x = s.x; victim.y = s.y;
+                    victim.health = Config.MAX_HEALTH;
+                    victim.isDead = false;
+                    victim.shieldTime = Config.SHIELD_DURATION;
+                }
+            }, 3000);
+        }
     }
 
     checkWinConditions() {
-        if (this.isGameOver) return;
-        let winner = null;
-        if (this.teamScores.Red >= this.killLimit) winner = 'Red';
-        if (this.teamScores.Blue >= this.killLimit) winner = 'Blue';
-        if (this.timeRemaining <= 0) winner = this.teamScores.Red > this.teamScores.Blue ? 'Red' : 'Blue';
-
-        if (winner) {
-            this.isGameOver = true;
-            this.io.to(this.roomId).emit('gameOver', { winner, scores: this.teamScores });
+        if (this.matchState !== 'PLAYING') return;
+        
+        let endRound = false;
+        let roundWinner = null;
+        
+        if (this.teamScores.Red >= this.killLimit) { endRound = true; roundWinner = 'Red'; }
+        else if (this.teamScores.Blue >= this.killLimit) { endRound = true; roundWinner = 'Blue'; }
+        else if (this.timeRemaining <= 0) {
+            endRound = true;
+            roundWinner = this.teamScores.Red > this.teamScores.Blue ? 'Red' : (this.teamScores.Blue > this.teamScores.Red ? 'Blue' : 'Draw');
         }
+
+        if (endRound) {
+            this.matchState = 'ROUND_END';
+            this.countdown = 5; // 5 seconds inter-round delay
+            if (roundWinner === 'Red') this.roundWins.Red++;
+            if (roundWinner === 'Blue') this.roundWins.Blue++;
+        }
+    }
+
+    endMatch() {
+        this.matchState = 'MATCH_OVER';
+        let matchWinner = this.roundWins.Red > this.roundWins.Blue ? 'Red' : 'Blue';
+        if (this.roundWins.Red === this.roundWins.Blue) matchWinner = 'Draw';
+        this.io.to(this.roomId).emit('gameOver', { winner: matchWinner, finalScores: this.roundWins, players: this.players });
     }
 }
 

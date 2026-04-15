@@ -116,6 +116,8 @@ io.on('connection', (socket) => {
                 room.game.bullets = [];
                 room.game.paused = false;
                 io.to(roomId).emit('gamePaused', false);
+            } else if (data.action === 'startMatch') {
+                room.game.startMatch();
             }
         }
     });
@@ -168,12 +170,19 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('voice-user-left', socket.id);
     });
 
-    // Sesli sohbet (Voice Chat) sinyalleri
     socket.on('voice-join', () => {
-        // Sadece bulunduğumuz odadaki diğer kullanıcılara gitmeli
         const roomId = roomManager.getRoomId(socket);
-        if (roomId) {
-            socket.to(roomId).emit('voice-user-joined', socket.id);
+        const room = roomManager.rooms[roomId];
+        if (room) {
+            const player = room.players[socket.id];
+            if (player && player.team) {
+                // Only send voice connection invites to players on the same team
+                Object.keys(room.players).forEach(otherId => {
+                    if (otherId !== socket.id && !room.players[otherId].isBot && room.players[otherId].team === player.team) {
+                        io.to(otherId).emit('voice-user-joined', socket.id);
+                    }
+                });
+            }
         }
     });
 

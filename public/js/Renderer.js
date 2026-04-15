@@ -43,6 +43,9 @@ class Renderer {
 
         // 5. LAYER 4: World-Space Overlay (Nameplates)
         this.renderWorldOverlay(state, myId);
+
+        // 6. LAYER 5: Screen-Space State Overlay
+        this.renderScreenOverlays(state);
     }
 
     updateCamera(state, myId) {
@@ -213,6 +216,42 @@ class Renderer {
             this.ctx.fillRect(rx - barW/2, ry + 6, barW, 4);
             this.ctx.fillStyle = (p.health > 40) ? 'hsl(190, 100%, 50%)' : 'hsl(340, 100%, 50%)';
             this.ctx.fillRect(rx - barW/2, ry + 6, barW * (p.health / 100), 4);
+        }
+    }
+
+    renderScreenOverlays(state) {
+        if (!state) return;
+
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to screen space
+        this.ctx.textAlign = 'center';
+        
+        const cx = this.canvas.width / 2;
+        const cy = this.canvas.height / 2;
+
+        if (state.matchState === 'LOBBY') {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '800 48px Outfit, sans-serif';
+            this.ctx.fillText("WAITING FOR DEPLOYMENT", cx, cy);
+            this.ctx.font = '300 24px Outfit, sans-serif';
+            this.ctx.fillStyle = 'rgb(180, 180, 180)';
+            this.ctx.fillText("Host must launch the operation from the hub.", cx, cy + 40);
+        } else if (state.matchState === 'STARTING') {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = 'hsl(340, 100%, 50%)'; // --secondary color
+            this.ctx.font = '800 120px Outfit, sans-serif';
+            this.ctx.fillText(state.countdown > 0 ? state.countdown : "FIGHT!", cx, cy);
+        } else if (state.matchState === 'ROUND_END') {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '800 64px Outfit, sans-serif';
+            this.ctx.fillText("ROUND CONCLUDED", cx, cy);
+            this.ctx.fillStyle = 'hsl(190, 100%, 50%)'; // --primary color
+            this.ctx.font = '400 32px Outfit, sans-serif';
+            this.ctx.fillText(`Next round in ${state.countdown}...`, cx, cy + 60);
         }
     }
 
