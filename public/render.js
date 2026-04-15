@@ -1,28 +1,14 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Harita boyutlarına sunucu ile eşleşecek şekilde erişim ihtiyacımız var, sunucudaki değerler:
-const MAP_WIDTH = 2400;
-const MAP_HEIGHT = 1600;
+// Harita boyutlarına sunucu ile eşleşecek şekilde erişim (3000x2000)
+const MAP_WIDTH = 3000;
+const MAP_HEIGHT = 2000;
 
 window.myLatestPos = null;
 window.cameraOffset = { x: 0, y: 0 };
 
-const walls = [
-    // Top-left
-    { x: 400, y: 400, width: 300, height: 60 },
-    { x: 400, y: 400, width: 60, height: 300 },
-    // Center blocks
-    { x: 1000, y: 700, width: 200, height: 200 },
-    { x: 1200, y: 900, width: 200, height: 200 },
-    { x: 800, y: 900, width: 200, height: 60 },
-    // Bottom-right
-    { x: 1700, y: 1140, width: 300, height: 60 },
-    { x: 1940, y: 900, width: 60, height: 300 },
-    // Additional side walls
-    { x: 1200, y: 200, width: 60, height: 300 },
-    { x: 1200, y: 1100, width: 60, height: 300 }
-];
+// Redundant walls removed. Layout is now dynamically provided by server.
 
 let particles = [];
 
@@ -83,8 +69,9 @@ function renderGame(state, myId) {
     };
     let theme = sMap.theme || 'grass';
     if (theme === 'grass') ctx.fillStyle = '#1e824c';
-    else if (theme === 'desert') ctx.fillStyle = '#d35400';
-    else if (theme === 'space') ctx.fillStyle = '#1a1a2e';
+    else if (theme === 'desert') ctx.fillStyle = '#e67e22';
+    else if (theme === 'space') ctx.fillStyle = '#0a0a0f';
+    else if (theme === 'winter') ctx.fillStyle = '#ecf0f1';
     else ctx.fillStyle = '#1a252f';
 
     ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
@@ -122,11 +109,7 @@ function renderGame(state, myId) {
         ctx.stroke();
     }
 
-    // Sabit Duvarları Çiz
-    ctx.fillStyle = '#7f8c8d';
-    for (let wall of walls) {
-        ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
-    }
+    // Main walls are now part of the layout dynamically.
     
     // Dinamik Duvarları Çiz
     ctx.fillStyle = '#95a5a6';
