@@ -1,10 +1,15 @@
 const socket = window.socket;
 
-/* --- SCREEN MANAGER --- */
+/* --- GLOBAL UI ELEMENTS --- */
+const browserScreen = document.getElementById('browser-screen');
+const gameScreen = document.getElementById('game-screen');
+const createRoomModal = document.getElementById('create-room-modal');
+
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    document.getElementById(screenId).style.display = 'flex'; // 'flex' for full-screen modals usually, 'block' otherwise
-    if (screenId === 'game-screen') document.getElementById(screenId).style.display = 'block';
+    const el = document.getElementById(screenId);
+    if (!el) return;
+    el.style.display = (screenId === 'game-screen') ? 'block' : 'flex';
 }
 
 /* --- AUTHENTICATION & CAPTCHA --- */
@@ -152,18 +157,24 @@ document.getElementById('btn-play-online').addEventListener('click', () => {
 });
 
 // Mode Selection Handlers
-document.getElementById('mode-classic').addEventListener('click', () => {
-    window.navigationContext = 'classic';
-    createRoomModal.style.display = 'flex';
-});
+const modeClassic = document.getElementById('mode-classic');
+if (modeClassic) {
+    modeClassic.addEventListener('click', () => {
+        window.navigationContext = 'classic';
+        if (createRoomModal) createRoomModal.style.display = 'flex';
+    });
+}
 
-document.getElementById('mode-sandbox').addEventListener('click', () => {
-    window.navigationContext = 'sandbox';
-    if (!window.myAccount) return;
-    const rname = `${window.myAccount.name}'s Creative Map`;
-    const settings = { mode: 'sandbox' };
-    socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
-});
+const modeSandbox = document.getElementById('mode-sandbox');
+if (modeSandbox) {
+    modeSandbox.addEventListener('click', () => {
+        window.navigationContext = 'sandbox';
+        if (!window.myAccount) return;
+        const rname = `${window.myAccount.name}'s Creative Map`;
+        const settings = { mode: 'sandbox' };
+        socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
+    });
+}
 
 document.getElementById('btn-profile').addEventListener('click', () => {
     alert("Profile statistics view is under development.");
@@ -218,17 +229,26 @@ socket.on('roomsList', (rooms) => {
 });
 
 /* --- MAIN MENU EXTENSIONS --- */
-document.getElementById('main-map-editor-btn').addEventListener('click', () => {
-    browserScreen.style.display = 'none';
-    gameScreen.style.display = 'block';
-    window.isMapEditorActive = true;
-    document.getElementById('sandbox-editor-ui').style.display = 'flex';
-    document.getElementById('skills-ui').style.display = 'none';
-    document.getElementById('score-panel').style.display = 'none';
-    
-    // Reset or load default layout
-    window.dynamicSandboxData = { theme: 'grass', walls: [], crates: [], bushes: [], tires: [], barrels: [], speedPads: [], spawns: [] };
-});
+const mainEditorBtn = document.getElementById('main-map-editor-btn');
+if (mainEditorBtn) {
+    mainEditorBtn.addEventListener('click', () => {
+        if (browserScreen) browserScreen.style.display = 'none';
+        if (gameScreen) gameScreen.style.display = 'block';
+        window.isMapEditorActive = true;
+        
+        const editorUI = document.getElementById('sandbox-editor-ui');
+        if (editorUI) editorUI.style.display = 'flex';
+        
+        const skillsUI = document.getElementById('skills-ui');
+        if (skillsUI) skillsUI.style.display = 'none';
+        
+        const scorePanel = document.getElementById('score-panel');
+        if (scorePanel) scorePanel.style.display = 'none';
+        
+        // Reset or load default layout
+        window.dynamicSandboxData = { theme: 'grass', walls: [], crates: [], bushes: [], tires: [], barrels: [], speedPads: [], spawns: [] };
+    });
+}
 
 document.getElementById('btn-close-editor').addEventListener('click', () => {
     window.isMapEditorActive = false;
