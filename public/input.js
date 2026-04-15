@@ -67,6 +67,7 @@ function initInput(socket) {
     };
 
     const GRID_SIZE = 40;
+    let selectedEditorObj = null;
 
     // Sağ tıktaki menüyü engelle
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -81,6 +82,23 @@ function initInput(socket) {
 
         const isRightClick = e.button === 2;
         const isLeftClick = e.button === 0;
+
+        // Selection & Drag Logic (Sandbox 3.0)
+        if (window.isEditingMap && isLeftClick) {
+            const gridX = Math.floor(mouseX / GRID_SIZE) * GRID_SIZE;
+            const gridY = Math.floor(mouseY / GRID_SIZE) * GRID_SIZE;
+            
+            for (let category in window.dynamicSandboxData) {
+                if (Array.isArray(window.dynamicSandboxData[category])) {
+                    const found = window.dynamicSandboxData[category].find(obj => obj.x === gridX && obj.y === gridY);
+                    if (found) {
+                        window.saveToUndo();
+                        selectedEditorObj = found;
+                        return;
+                    }
+                }
+            }
+        }
 
         // Editor modu devredeyken (Sadece sağ tık ile çizilir/silinir)
         if (window.isEditingMap && isRightClick) {
@@ -138,14 +156,33 @@ function initInput(socket) {
         }
 
         // Normal oyun modu (Ateş etme)
-        if (isLeftClick && !window.isEditingMap) {
-            if (window.myLatestPos) {
-                let dx = mouseX - window.myLatestPos.x;
-                let dy = mouseY - window.myLatestPos.y;
-                let angle = Math.atan2(dy, dx);
-                socketRef.emit('shoot', angle);
+        if (!window.isEditingMap && isLeftClick) {
+            const angle = Math.atan2(mouseY - window.myLatestPos.y, mouseX - window.myLatestPos.x);
+            socketRef.emit('shoot', angle);
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (window.isEditingMap && selectedEditorObj) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const mouseX = ((e.clientX - rect.left) * scaleX) + window.cameraOffset.x;
+            const mouseY = ((e.clientY - rect.top) * scaleY) + window.cameraOffset.y;
+            
+            const gridX = Math.floor(mouseX / GRID_SIZE) * GRID_SIZE;
+            const gridY = Math.floor(mouseY / GRID_SIZE) * GRID_SIZE;
+            
+            if (selectedEditorObj.x !== gridX || selectedEditorObj.y !== gridY) {
+                selectedEditorObj.x = gridX;
+                selectedEditorObj.y = gridY;
+                socketRef.emit('sandbox-update', window.dynamicSandboxData);
             }
         }
+    });
+
+    window.addEventListener('mouseup', () => {
+        selectedEditorObj = null;
     });
 }
 

@@ -48,10 +48,30 @@
       </nav>
 
       <div class="main-menu-buttons">
-          <button id="btn-play-online" class="btn-primary mega-btn">PLAY ONLINE</button>
-          <button id="btn-map-editor" class="btn-secondary mega-btn" style="border-color: #f1c40f; color: #f1c40f;">MAP EDITOR (SANDBOX)</button>
+          <button id="btn-host-game" class="btn-primary mega-btn">HOST NEW GAME</button>
+          <button id="btn-play-online" class="btn-secondary mega-btn">BROWSE SERVERS</button>
           <button id="btn-profile" class="btn-secondary mega-btn">PROFILE & STATS</button>
           <button id="btn-logout" class="btn-danger mega-btn">LOGOUT</button>
+      </div>
+  </div>
+
+  <!-- 3. MODE SELECTION MODAL (New for Sandbox 3.0) -->
+  <div id="mode-selection-screen" class="screen full-screen-modal" style="display:none;">
+      <div class="glass-panel" style="max-width: 600px; padding: 40px; text-align: center;">
+          <h2 style="margin-top:0;">CHOOSE GAME MODE</h2>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0;">
+              <div class="mode-card glass-panel" id="mode-classic" style="cursor:pointer; padding:20px; transition:0.3s;">
+                  <div style="font-size: 40px; margin-bottom: 10px;">⚔️</div>
+                  <h3>CLASSIC BATTLE</h3>
+                  <p class="subtext">Team-based tank combat. Fight for victory in standard arenas!</p>
+              </div>
+              <div class="mode-card glass-panel" id="mode-sandbox" style="cursor:pointer; padding:20px; transition:0.3s;">
+                  <div style="font-size: 40px; margin-bottom: 10px;">🛠️</div>
+                  <h3>MAP EDITOR</h3>
+                  <p class="subtext">Create your own destiny! Build custom maps with explosive props.</p>
+              </div>
+          </div>
+          <button onclick="showScreen('main-menu-screen')" class="btn-secondary" style="width:100%;">BACK TO MENU</button>
       </div>
   </div>
 
@@ -158,40 +178,36 @@
       <div style="color:#3498db;">Blue: <span id="score-blue">0</span></div>
     </div>
 
-    <!-- Map Editor Toolbar (In Game) -->
-    <div id="map-editor-toolbar" style="display:none; position: fixed; top: 80px; left: 10px; z-index: 20;" class="glass-panel">
-        <h3 style="margin:0 0 10px 0;">🛠️ Sandbox</h3>
-        <div class="editor-tools" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 10px;">
-            <button class="editor-tool active" data-tool="wall">🧱 Wall</button>
-            <button class="editor-tool" data-tool="crate">📦 Crate</button>
-            <button class="editor-tool" data-tool="bush">🌿 Bush</button>
-            <button class="editor-tool" data-tool="tire">🛞 Tire</button>
-            <button class="editor-tool" data-tool="barrel" style="color:#e67e22;">💥 Barrel</button>
-            <button class="editor-tool" data-tool="speedPad" style="color:#2ecc71;">⚡ Speed</button>
-            <button class="editor-tool" data-tool="redSpawn" style="color:#e74c3c;">🚩 Red S.</button>
-            <button class="editor-tool" data-tool="blueSpawn" style="color:#3498db;">🚩 Blue S.</button>
-        </div>
-        <div style="margin-bottom:10px;">
-            <label style="font-size:11px; display:block; margin-bottom:3px;">🌍 Theme</label>
-            <select id="editor-theme-select" class="styled-input" style="padding: 5px; font-size: 11px; margin-bottom:0;">
-                <option value="grass">Grassland</option>
-                <option value="desert">Desert Sands</option>
-                <option value="space">Deep Space</option>
-            </select>
-        </div>
-        <div style="background: rgba(0,0,0,0.4); padding: 5px; border-radius: 4px; font-size: 10px; margin-bottom: 10px; color: #f1c40f;">
-            <span id="editor-rot-display">Rotation: 0°</span> (Press <strong>'R'</strong>)<br>
-            Undo: <strong>Ctrl+Z</strong>
-        </div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-            <select id="save-layout-slot" class="styled-input" style="padding: 5px; font-size: 12px; margin-bottom:0;">
-                <option value="0">Save to Slot 1</option>
-            </select>
-            <button id="btn-save-layout" class="btn-primary" style="font-size: 12px; padding: 5px;">Save Layout</button>
-            <button id="btn-clear-map" class="btn-secondary" style="font-size: 11px; padding: 5px; color:#e67e22; border-color:#e67e22;">🧹 Clear All</button>
-            <button id="btn-test-map" class="btn-primary" style="font-size: 12px; padding: 8px; margin-top: 5px; background: #2ecc71;">🎮 TEST MAP (PLAY)</button>
-            <hr style="border-color: rgba(255,255,255,0.1); width: 100%;">
-            <button id="btn-close-editor" class="btn-danger" style="font-size: 12px; padding: 5px;">Exit Editor</button>
+    <!-- Sandbox 3.0: Bottom Toolbar (CoC Style) -->
+    <div id="map-editor-toolbar" style="display:none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; width: 90%; max-width: 1000px;" class="glass-panel bottom-dock">
+        <div style="display:flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
+            <div class="editor-info">
+                <h3 style="margin:0;">🛠️ EDITOR</h3>
+                <div style="font-size: 10px; color: #f1c40f;">Rotation: <span id="editor-rot-display">0°</span> (R) | Undo: Ctrl+Z</div>
+            </div>
+            
+            <div class="editor-tools-scroll" style="display: flex; gap: 10px; overflow-x: auto; padding: 5px; flex-grow: 1; margin: 0 20px; justify-content: center;">
+                <div class="tool-card active" data-tool="wall" title="Wall">🧱</div>
+                <div class="tool-card" data-tool="crate" title="Crate">📦</div>
+                <div class="tool-card" data-tool="bush" title="Bush">🌿</div>
+                <div class="tool-card" data-tool="tire" title="Tire">🛞</div>
+                <div class="tool-card" data-tool="barrel" title="Explosive Barrel">💥</div>
+                <div class="tool-card" data-tool="speedPad" title="Speed Pad">⚡</div>
+                <div class="tool-card" data-tool="redSpawn" title="Red Spawn">🚩</div>
+                <div class="tool-card" data-tool="blueSpawn" title="Blue Spawn">🟦</div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items: center;">
+                <select id="editor-theme-select" class="styled-input" style="padding: 5px; font-size: 12px; margin:0; width: 100px;">
+                    <option value="grass">Grass</option>
+                    <option value="desert">Desert</option>
+                    <option value="space">Space</option>
+                </select>
+                <button id="btn-clear-map" class="btn-secondary" style="padding: 8px;">🧹</button>
+                <button id="btn-test-map" class="btn-primary" style="padding: 8px 15px; font-weight: bold; background: #2ecc71;">PLAY</button>
+                <button id="btn-save-layout" class="btn-secondary" style="padding: 8px;">💾</button>
+                <button id="btn-close-editor" class="btn-danger" style="padding: 8px;">✕</button>
+            </div>
         </div>
     </div>
 

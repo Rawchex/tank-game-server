@@ -140,8 +140,10 @@ function updateLayoutDropdowns() {
     });
 }
 
-/* --- MAIN MENU NAVIGATION --- */
-window.navigationContext = 'classic'; // 'classic' or 'sandbox'
+/* --- MAIN MENU --- */
+document.getElementById('btn-host-game').addEventListener('click', () => {
+    showScreen('mode-selection-screen');
+});
 
 document.getElementById('btn-play-online').addEventListener('click', () => {
     window.navigationContext = 'classic';
@@ -149,10 +151,15 @@ document.getElementById('btn-play-online').addEventListener('click', () => {
     socket.emit('getRooms');
 });
 
-document.getElementById('btn-map-editor').addEventListener('click', () => {
+// Mode Selection Handlers
+document.getElementById('mode-classic').addEventListener('click', () => {
+    window.navigationContext = 'classic';
+    createRoomModal.style.display = 'flex';
+});
+
+document.getElementById('mode-sandbox').addEventListener('click', () => {
     window.navigationContext = 'sandbox';
     if (!window.myAccount) return;
-    // Auto-host a sandbox
     const rname = `${window.myAccount.name}'s Creative Map`;
     const settings = { mode: 'sandbox' };
     socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
@@ -405,12 +412,11 @@ document.getElementById('btn-close-editor').addEventListener('click', () => {
 
 // Map Tools global
 window.currentEditorTool = 'wall';
-document.querySelectorAll('.editor-tool').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.editor-tool').forEach(b => b.classList.remove('active'));
-        const target = e.currentTarget;
-        target.classList.add('active');
-        window.currentEditorTool = target.getAttribute('data-tool');
+document.querySelectorAll('.tool-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.tool-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        window.currentEditorTool = card.getAttribute('data-tool');
     });
 });
 
