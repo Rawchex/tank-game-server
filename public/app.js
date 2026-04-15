@@ -435,6 +435,16 @@ document.getElementById('btn-clear-map').addEventListener('click', () => {
     }
 });
 
+document.getElementById('btn-test-map').addEventListener('click', () => {
+    window.isEditingMap = false;
+    document.getElementById('map-editor-toolbar').style.display = 'none';
+    // Join Red team to play instantly
+    const playerName = window.myAccount ? window.myAccount.name : 'Host';
+    socket.emit('joinTeam', { team: 'Red', name: playerName });
+    myTeam = 'Red';
+    startGame();
+});
+
 /* --- VOICE SETTINGS --- */
 const voiceModal = document.getElementById('voice-settings-modal');
 document.getElementById('voice-settings-btn').addEventListener('click', () => {
