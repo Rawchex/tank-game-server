@@ -1,5 +1,5 @@
-const Config = require('../shared/Config');
-const Physics = require('../shared/Physics');
+const Config = require('../public/shared/Config');
+const Physics = require('../public/shared/Physics');
 
 /**
  * Tank Engine 2.0 - AI Controller

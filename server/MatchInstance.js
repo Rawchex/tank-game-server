@@ -1,5 +1,5 @@
-const Config = require('../shared/Config');
-const Physics = require('../shared/Physics');
+const Config = require('../public/shared/Config');
+const Physics = require('../public/shared/Physics');
 const AIController = require('./AIController');
 const mapData = require('../map');
 
