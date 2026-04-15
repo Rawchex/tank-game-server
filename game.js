@@ -462,7 +462,7 @@ class Game {
             let canMoveX = true;
             let canMoveY = true;
 
-            const allWallsAndCrates = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates];
+            const allWallsAndCrates = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates, ...this.dynamicMap.tires];
 
             for (let wall of allWallsAndCrates) {
                 if (this.checkCollision({ x: nextX, y: p.y, width: p.width, height: p.height }, wall)) canMoveX = false;
