@@ -171,16 +171,53 @@ canvas { display: block; background: #1a252f; width: 100%; height: 100%; object-
 .score-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 15px;}
 
 #skills-ui {
-  position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 20px; background: var(--glass-bg); padding: 15px 30px; border-radius: 40px; z-index: 10;
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 25px; align-items: flex-end;
+  z-index: 100;
 }
+
 .skill-box {
-  width: 55px; height: 55px; border-radius: 50%; border: 3px solid #7f8c8d;
-  display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px;
-  background: rgba(0,0,0,0.6); transition: all 0.2s; position: relative;
+  width: 65px; height: 65px; border-radius: 16px;
+  background: rgba(15, 23, 42, 0.9); border: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 26px; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative; cursor: pointer; user-select: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
-.skill-box.ready { border-color: var(--success); color: var(--success); box-shadow: 0 0 15px rgba(46, 204, 113, 0.4); }
-.skill-box.cooldown { border-color: var(--danger); color: var(--danger); opacity: 0.4; }
+
+.skill-box::before {
+  content: attr(data-key);
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: #34495e; color: white; padding: 2px 8px; border-radius: 6px;
+  font-size: 10px; font-weight: 900; border: 1px solid rgba(255,255,255,0.2);
+}
+
+.skill-box.ready {
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 0 20px rgba(52, 152, 219, 0.4);
+}
+.skill-box.ready:hover {
+  transform: translateY(-10px) scale(1.1);
+  box-shadow: 0 0 30px var(--primary);
+}
+
+.skill-box.cooldown {
+  opacity: 0.4;
+  filter: grayscale(1);
+  transform: scale(0.9);
+}
+
+.skill-box .skill-tooltip {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: white; padding: 5px 12px; border-radius: 8px;
+  font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none;
+  transition: 0.2s; border: 1px solid var(--primary);
+}
+.skill-box:hover .skill-tooltip { opacity: 1; bottom: 85px; }
+
+/* Mid skill slightly higher for curved feel */
+#skill-x { margin-bottom: 15px; }
 
 /* Sandbox 3.0: Bottom Dock & Selection Cards */
 .mode-card {

@@ -54,6 +54,14 @@ function renderGame(state, myId) {
     }
 
     if (window.myLatestPos) {
+        // Find local player in state to get latest coordinates
+        const me = state.players[myId];
+        if (me && !me.isDead) {
+            window.myLatestPos = { x: me.x, y: me.y };
+        } else if (window.isEditingMap && window.myEditorPos) {
+            window.myLatestPos = window.myEditorPos;
+        }
+
         // Calculate camera offsets, clamped to map boundaries
         let camX = window.myLatestPos.x - canvas.width / 2;
         let camY = window.myLatestPos.y - canvas.height / 2;

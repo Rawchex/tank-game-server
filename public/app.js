@@ -242,8 +242,14 @@ socket.on('roomJoined', (roomId) => {
         // Direct jump to editor
         window.isEditingMap = true;
         document.getElementById('map-editor-toolbar').style.display = 'block';
+        document.getElementById('hud').style.display = 'none';
+        document.getElementById('scoreboard-ui').style.display = 'none';
+        document.getElementById('skills-ui').style.display = 'none';
         startGame();
     } else {
+        document.getElementById('hud').style.display = 'flex';
+        document.getElementById('scoreboard-ui').style.display = 'block';
+        document.getElementById('skills-ui').style.display = 'flex';
         showScreen('lobby-screen');
     }
 });

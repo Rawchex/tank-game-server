@@ -145,8 +145,8 @@ class Game {
             const spawnX = player.x + Math.cos(angle) * (player.width / 2);
             const spawnY = player.y + Math.sin(angle) * (player.height / 2);
 
-            let bulletSpeed = player.hasRapidFire ? 18 : 12;
-
+            // Bullet spawn physics fix (Remove "falso"/drift effect)
+            let bulletSpeed = player.hasRapidFire ? 19 : 13;
             this.bullets.push({
                 x: spawnX,
                 y: spawnY,
@@ -154,8 +154,8 @@ class Game {
                 vy: Math.sin(angle) * bulletSpeed,
                 owner: socketId,
                 team: player.team,
-                radius: 5,
-                life: 100 // frames
+                radius: 4,
+                life: 110 
             });
 
             // Muzzle flash efekti için sarı partikül
@@ -203,10 +203,7 @@ class Game {
         let closestEnemy = null;
         let minDist = Infinity;
 
-        // 1. Find Closest Target & Swarm Repulsion
-        let swarmVectorX = 0;
-        let swarmVectorY = 0;
-
+        // 1. Find Closest Target
         for (let eid in this.players) {
             const enemy = this.players[eid];
             if (enemy.team !== p.team && !enemy.isDead) {
@@ -215,207 +212,83 @@ class Game {
                     minDist = dist;
                     closestEnemy = enemy;
                 }
-            } else if (eid !== id && enemy.team === p.team && !enemy.isDead) {
-                // Swarm repulsion
-                let dist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
-                if (dist < 100) { // Keep 100px distance from allies
-                    swarmVectorX += (p.x - enemy.x) / dist;
-                    swarmVectorY += (p.y - enemy.y) / dist;
-                }
-            }
-        }
-
-        // 2. Advanced Dodging (God-Tier)
-        let isDodging = false;
-        let dangerVectorX = 0;
-        let dangerVectorY = 0;
-
-        for (let b of this.bullets) {
-            if (b.team !== p.team) {
-                let speed = Math.hypot(b.vx, b.vy) || 1;
-                let dx = b.vx / speed;
-                let dy = b.vy / speed;
-
-                let tx = p.x - b.x;
-                let ty = p.y - b.y;
-                let distToBullet = Math.hypot(tx, ty);
-
-                let dot = (tx * dx + ty * dy);
-                if (dot > 0 && distToBullet < 450) {
-                    let px = b.x + dx * dot;
-                    let py = b.y + dy * dot;
-
-                    let distToLine = Math.hypot(p.x - px, p.y - py);
-                    if (distToLine < p.width + 15) {
-                        isDodging = true;
-                        // Orthogonal avoidance
-                        dangerVectorX += p.x - px;
-                        dangerVectorY += p.y - py;
-                    }
-                }
             }
         }
 
         p.input = { w: false, a: false, s: false, d: false };
+        if (!closestEnemy) return;
 
-        if (isDodging) {
-            if (Math.abs(dangerVectorX) > Math.abs(dangerVectorY)) {
-                if (dangerVectorX > 0) p.input.d = true;
-                else p.input.a = true;
-            } else {
-                if (dangerVectorY === 0 && dangerVectorX === 0) {
-                    p.input.w = true;
-                } else if (dangerVectorY > 0) p.input.s = true;
-                else p.input.w = true;
-            }
-        } else if (closestEnemy) {
-            // Cover Seeking Logic vs Pure Approach
-            let wantX = false, wantY = false;
-            let targetX = closestEnemy.x;
-            let targetY = closestEnemy.y;
-
-            if (p.cooldown > 20) {
-                // Try to find a cover wall between us and enemy
-                let bestCover = null;
-                let bestDist = Infinity;
-                for (let wall of map.walls) {
-                    let wx = wall.x + wall.width / 2;
-                    let wy = wall.y + wall.height / 2;
-                    let distToWall = Math.hypot(p.x - wx, p.y - wy);
-                    let distEnemyToWall = Math.hypot(closestEnemy.x - wx, closestEnemy.y - wy);
-
-                    // Wall is closer to us than enemy
-                    if (distToWall < distEnemyToWall && distToWall < 600) {
-                        if (distToWall < bestDist) {
-                            bestDist = distToWall;
-                            bestCover = wall;
-                        }
-                    }
-                }
-
-                if (bestCover) {
-                    // Move to the opposite side of the wall from the enemy
-                    let dx = bestCover.x + bestCover.width / 2 - closestEnemy.x;
-                    let dy = bestCover.y + bestCover.height / 2 - closestEnemy.y;
-                    let len = Math.hypot(dx, dy);
-                    if (len > 0) {
-                        targetX = (bestCover.x + bestCover.width / 2) + (dx / len) * (Math.max(bestCover.width, bestCover.height));
-                        targetY = (bestCover.y + bestCover.height / 2) + (dy / len) * (Math.max(bestCover.width, bestCover.height));
-                    }
+        // 2. Realistic Target Rotation
+        let targetAngle = Math.atan2(closestEnemy.y - p.y, closestEnemy.x - p.x);
+        
+        // 3. Bullet Avoidance (Dodging)
+        let avoidX = 0, avoidY = 0;
+        for (let b of this.bullets) {
+            if (b.team !== p.team) {
+                let dist = Math.hypot(p.x - b.x, p.y - b.y);
+                if (dist < 250) {
+                    avoidX += (p.x - b.x) / dist;
+                    avoidY += (p.y - b.y) / dist;
                 }
             }
+        }
 
-            let dirX = targetX - p.x;
-            let dirY = targetY - p.y;
-            let distToTarget = Math.hypot(dirX, dirY);
-
-            // Normalize base direction
-            if (distToTarget > 0) {
-                dirX /= distToTarget;
-                dirY /= distToTarget;
+        // 4. Block Avoidance
+        const allBlocks = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates];
+        for (let block of allBlocks) {
+            let wx = block.x + block.width/2;
+            let wy = block.y + block.height/2;
+            let dist = Math.hypot(p.x - wx, p.y - wy);
+            if (dist < 130) {
+                avoidX += (p.x - wx) / (dist || 1) * 6;
+                avoidY += (p.y - wy) / (dist || 1) * 6;
             }
+        }
 
-            // ADD STRAFING
-            p.strafeTimer = (p.strafeTimer || 0) - 1;
-            if (p.strafeTimer <= 0) {
-                p.strafeDir = Math.random() < 0.5 ? 1 : -1;
-                p.strafeTimer = Math.floor(Math.random() * 60) + 60; // 1 to 2 seconds
-            }
+        // 5. Final Angle Blend
+        let moveAngle = Math.atan2(Math.sin(targetAngle) + avoidY * 2.5, Math.cos(targetAngle) + avoidX * 2.5);
 
-            // If we have LoS and are in combat range, add perpendicular strafe vector
-            if (p.cooldown > 0 && distToTarget < 600) {
-                let strafeVx = -dirY * p.strafeDir;
-                let strafeVy = dirX * p.strafeDir;
-                dirX += strafeVx * 1.5;
-                dirY += strafeVy * 1.5;
-            }
+        // Smooth Turn Simulation
+        if (p.angle === undefined) p.angle = moveAngle;
+        let diff = moveAngle - p.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        p.angle += diff * 0.12; // Turn responsiveness
 
-            // CONTINUOUS WALL REPULSION
-            let wallRepulsionX = 0;
-            let wallRepulsionY = 0;
-            for (let wall of map.walls) {
-                // Find nearest point on the wall rect to the player center
-                let wx = Math.max(wall.x, Math.min(p.x, wall.x + wall.width));
-                let wy = Math.max(wall.y, Math.min(p.y, wall.y + wall.height));
+        // Applied Movement
+        p.input.w = true; // Always moving forward relative to p.angle
+        p.x += Math.cos(p.angle) * p.speed * 0.75;
+        p.y += Math.sin(p.angle) * p.speed * 0.75;
 
-                let distToSurface = Math.hypot(p.x - wx, p.y - wy);
-                if (distToSurface < p.width + 30 && distToSurface > 0) {
-                    // Strong repulsion inversely proportional to distance
-                    let force = (p.width + 30 - distToSurface) / (p.width + 30);
-                    wallRepulsionX += ((p.x - wx) / distToSurface) * force * 6;
-                    wallRepulsionY += ((p.y - wy) / distToSurface) * force * 6;
+        // 6. Combat Logic (Interception Aiming)
+        p.cooldown = p.cooldown || 0;
+        if (p.cooldown > 0) p.cooldown--;
+
+        if (p.cooldown <= 0 && minDist < 500) {
+            // Check Line of Sight
+            let hasLos = true;
+            for (let wall of allBlocks) {
+                if (this.lineIntersectsRect(p.x, p.y, closestEnemy.x, closestEnemy.y, wall)) {
+                    hasLos = false;
+                    break;
                 }
             }
 
-            // STUCK DETECTION & PANIC
-            p.stuckTimer = (p.stuckTimer || 0) + 1;
-            if (p.stuckTimer > 60) {
-                let movedDist = Math.hypot(p.x - (p.stuckX || p.x), p.y - (p.stuckY || p.y));
-                if (movedDist < 10) {
-                    p.panicTimer = 45; // Panic for 45 frames
-                    p.panicDirX = (Math.random() - 0.5) * 2;
-                    p.panicDirY = (Math.random() - 0.5) * 2;
-                }
-                p.stuckX = p.x;
-                p.stuckY = p.y;
-                p.stuckTimer = 0;
-            }
+            if (hasLos) {
+                // Predictive shoot
+                let ex = closestEnemy.x; let ey = closestEnemy.y;
+                let bSpeed = 13;
+                let t = minDist / bSpeed;
+                // Check enemy movement via input (basic prediction)
+                let evx = 0; let evy = 0;
+                if (closestEnemy.input.w) evy -= closestEnemy.speed;
+                if (closestEnemy.input.s) evy += closestEnemy.speed;
+                if (closestEnemy.input.a) evx -= closestEnemy.speed;
+                if (closestEnemy.input.d) evx += closestEnemy.speed;
 
-            p.panicTimer = (p.panicTimer || 0) - 1;
-
-            // COMBINE VECTORS
-            let finalDirX, finalDirY;
-            if (p.panicTimer > 0) {
-                finalDirX = p.panicDirX;
-                finalDirY = p.panicDirY;
-            } else {
-                finalDirX = dirX + (swarmVectorX * 1.5) + wallRepulsionX;
-                finalDirY = dirY + (swarmVectorY * 1.5) + wallRepulsionY;
-            }
-
-            // Apply Continuous Steering to WASD Intention
-            if (Math.abs(finalDirX) > 0.1) {
-                if (finalDirX > 0) p.input.d = true;
-                else p.input.a = true;
-            }
-            if (Math.abs(finalDirY) > 0.1) {
-                if (finalDirY > 0) p.input.s = true;
-                else p.input.w = true;
-            }
-
-            // 4. Predictive Aiming
-            p.cooldown = p.cooldown || 0;
-            if (p.cooldown > 0) p.cooldown--;
-
-            if (p.cooldown <= 0) {
-                let hasLos = true;
-                for (let wall of map.walls) {
-                    if (this.lineIntersectsRect(p.x, p.y, closestEnemy.x, closestEnemy.y, wall)) {
-                        hasLos = false; break;
-                    }
-                }
-
-                if (hasLos) {
-                    let ex = closestEnemy.x;
-                    let ey = closestEnemy.y;
-
-                    let evx = 0; let evy = 0;
-                    if (closestEnemy.input.w) evy -= closestEnemy.speed;
-                    if (closestEnemy.input.s) evy += closestEnemy.speed;
-                    if (closestEnemy.input.a) evx -= closestEnemy.speed;
-                    if (closestEnemy.input.d) evx += closestEnemy.speed;
-
-                    // Interception time
-                    let bulletSpeed = 12;
-                    let t = minDist / bulletSpeed;
-
-                    let predX = ex + evx * t;
-                    let predY = ey + evy * t;
-
-                    let angle = Math.atan2(predY - p.y, predX - p.x);
-                    this.handleShoot(id, angle);
-                    p.cooldown = 45 + Math.floor(Math.random() * 20); // Cooldown with staggered firing (45-65 frames)
-                }
+                let shootAngle = Math.atan2((ey + evy*t) - p.y, (ex + evx*t) - p.x);
+                this.handleShoot(id, shootAngle);
+                p.cooldown = 45 + Math.floor(Math.random()*15);
             }
         }
     }

@@ -68,6 +68,7 @@ function initInput(socket) {
 
     const GRID_SIZE = 40;
     let selectedEditorObj = null;
+    let autoFireInterval = null;
 
     // Sağ tıktaki menüyü engelle
     canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -157,12 +158,31 @@ function initInput(socket) {
 
         // Normal oyun modu (Ateş etme)
         if (!window.isEditingMap && isLeftClick) {
-            const angle = Math.atan2(mouseY - window.myLatestPos.y, mouseX - window.myLatestPos.x);
-            socketRef.emit('shoot', angle);
+            const fire = () => {
+                if (!window.isEditingMap && window.myLatestPos) {
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    const curX = ((e.clientX - rect.left) * scaleX) + window.cameraOffset.x;
+                    const curY = ((e.clientY - rect.top) * scaleY) + window.cameraOffset.y;
+                    const angle = Math.atan2(curY - window.myLatestPos.y, curX - window.myLatestPos.x);
+                    socketRef.emit('shoot', angle);
+                }
+            };
+            fire(); // Initial shot
+            if (autoFireInterval) clearInterval(autoFireInterval);
+            autoFireInterval = setInterval(fire, 200); // 200ms fire rate
         }
     });
 
     canvas.addEventListener('mousemove', (e) => {
+        // Update firing direction if auto-firing
+        if (autoFireInterval) {
+            // Firing angle is handled by the fire function closure if mouse coords are updated
+            // But we need a way to pass latest coords. Let's update global mouse pos.
+            window.latestMouseWorld = getMouseWorld(e);
+        }
+        
         if (window.isEditingMap && selectedEditorObj) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -183,7 +203,28 @@ function initInput(socket) {
 
     window.addEventListener('mouseup', () => {
         selectedEditorObj = null;
+        if (autoFireInterval) {
+            clearInterval(autoFireInterval);
+            autoFireInterval = null;
+        }
     });
+
+    canvas.addEventListener('mouseleave', () => {
+        if (autoFireInterval) {
+            clearInterval(autoFireInterval);
+            autoFireInterval = null;
+        }
+    });
+
+    function getMouseWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: ((e.clientX - rect.left) * scaleX) + window.cameraOffset.x,
+            y: ((e.clientY - rect.top) * scaleY) + window.cameraOffset.y
+        };
+    }
 }
 
 function startSkillCooldown(skill) {
