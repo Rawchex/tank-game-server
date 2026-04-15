@@ -205,6 +205,17 @@
         <button id="close-voice-settings" class="btn-danger" style="margin-top:20px; width:100%;">Close</button>
     </div>
 
+    <!-- In-Game Admin Controls (Host Only) -->
+    <div id="ingame-admin" class="glass-panel" style="display:none; position:fixed; top:80px; right:10px; z-index:20;">
+        <h4 style="margin:0 0 10px 0; color:#e74c3c;">👑 Admin Manager</h4>
+        <div style="display:flex; flex-direction:column; gap:5px;">
+            <button class="btn-danger" style="font-size:11px; padding:5px;" onclick="window.socket.emit('addBot', 'Red')">+ Red Bot</button>
+            <button class="btn-secondary" style="font-size:11px; padding:5px;" onclick="window.socket.emit('removeBot', 'Red')">- Red Bot</button>
+            <button class="btn-primary" style="font-size:11px; padding:5px;" onclick="window.socket.emit('addBot', 'Blue')">+ Blue Bot</button>
+            <button class="btn-secondary" style="font-size:11px; padding:5px;" onclick="window.socket.emit('removeBot', 'Blue')">- Blue Bot</button>
+        </div>
+    </div>
+
     <!-- Return to lobby from game manually (Optional but good UX) -->
     <button id="ingame-leave-btn" class="btn-danger" style="position:fixed; top:20px; left:20px; z-index:20;">Leave Game</button>
 
@@ -212,6 +223,9 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script>
+      window.socket = io();
+  </script>
   <script src="input.js"></script>
   <script src="render.js"></script>
   <script src="voice.js"></script>

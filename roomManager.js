@@ -94,6 +94,7 @@ class RoomManager {
             id: r.id,
             name: r.name,
             hostId: r.hostId,
+            mode: r.settings.mode || 'classic',
             playerCount: Object.keys(r.players).length
         }));
     }

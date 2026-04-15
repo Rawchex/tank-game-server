@@ -33,10 +33,24 @@ function resizeCanvas() {
 }
 resizeCanvas(); // Initial size
 
+window.myEditorPos = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 };
+
 function renderGame(state, myId) {
     // Determine player's position to center camera
     if (state.players[myId] && !state.players[myId].isDead) {
         window.myLatestPos = { x: state.players[myId].x, y: state.players[myId].y };
+    } else if (window.isEditingMap) {
+        if (window.inputKeys) {
+            const camSpeed = 15;
+            if (window.inputKeys.w) window.myEditorPos.y -= camSpeed;
+            if (window.inputKeys.s) window.myEditorPos.y += camSpeed;
+            if (window.inputKeys.a) window.myEditorPos.x -= camSpeed;
+            if (window.inputKeys.d) window.myEditorPos.x += camSpeed;
+            
+            window.myEditorPos.x = Math.max(0, Math.min(window.myEditorPos.x, MAP_WIDTH));
+            window.myEditorPos.y = Math.max(0, Math.min(window.myEditorPos.y, MAP_HEIGHT));
+        }
+        window.myLatestPos = window.myEditorPos;
     }
 
     if (window.myLatestPos) {

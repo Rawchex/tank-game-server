@@ -1,4 +1,4 @@
-let inputKeys = { w: false, a: false, s: false, d: false };
+window.inputKeys = { w: false, a: false, s: false, d: false };
 let socketRef = null;
 
 const skillCooldowns = { z: false, x: false, c: false };
@@ -9,9 +9,9 @@ function initInput(socket) {
 
     window.addEventListener('keydown', (e) => {
         let k = e.key.toLowerCase();
-        if (inputKeys.hasOwnProperty(k)) {
-            inputKeys[k] = true;
-            socketRef.emit('input', inputKeys);
+        if (window.inputKeys.hasOwnProperty(k)) {
+            window.inputKeys[k] = true;
+            if (!window.isEditingMap) socketRef.emit('input', window.inputKeys);
         }
 
         // Skills trigger
@@ -23,9 +23,9 @@ function initInput(socket) {
 
     window.addEventListener('keyup', (e) => {
         let k = e.key.toLowerCase();
-        if (inputKeys.hasOwnProperty(k)) {
-            inputKeys[k] = false;
-            socketRef.emit('input', inputKeys);
+        if (window.inputKeys.hasOwnProperty(k)) {
+            window.inputKeys[k] = false;
+            if (!window.isEditingMap) socketRef.emit('input', window.inputKeys);
         }
     });
 

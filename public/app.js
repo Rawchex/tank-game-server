@@ -1,4 +1,4 @@
-const socket = io();
+const socket = window.socket;
 
 /* --- SCREEN MANAGER --- */
 function showScreen(screenId) {
@@ -310,7 +310,17 @@ socket.on('gameState', (state) => {
        sandboxHostPanel.style.display = window.latestGameSettings.mode === 'sandbox' ? 'block' : 'none';
     }
 
-    if (myTeam && typeof renderGame === 'function') {
+    if (isRoomAdmin && typeof document !== 'undefined') {
+        const gameScreen = document.getElementById('game-screen');
+        const adminPanel = document.getElementById('ingame-admin');
+        if (gameScreen && gameScreen.style.display !== 'none' && adminPanel) {
+            adminPanel.style.display = 'block';
+        } else if (adminPanel) {
+            adminPanel.style.display = 'none';
+        }
+    }
+
+    if ((myTeam || window.isEditingMap) && typeof renderGame === 'function') {
         renderGame(state, socket.id);
     }
 });
