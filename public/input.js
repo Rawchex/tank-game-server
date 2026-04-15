@@ -31,15 +31,64 @@ function initInput(socket) {
 
     const canvas = document.getElementById('gameCanvas');
 
+    // Sandbox default verisi
+    window.dynamicSandboxData = { walls: [], crates: [], bushes: [], tires: [] };
+    const GRID_SIZE = 40;
+
+    // Sağ tıktaki menüyü engelle
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
     canvas.addEventListener('mousedown', (e) => {
-        if (e.button === 0) { // Sol tık
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
 
-            const mouseX = ((e.clientX - rect.left) * scaleX) + window.cameraOffset.x;
-            const mouseY = ((e.clientY - rect.top) * scaleY) + window.cameraOffset.y;
+        const mouseX = ((e.clientX - rect.left) * scaleX) + window.cameraOffset.x;
+        const mouseY = ((e.clientY - rect.top) * scaleY) + window.cameraOffset.y;
 
+        const isRightClick = e.button === 2;
+        const isLeftClick = e.button === 0;
+
+        // Editor modu devredeyken (Sadece sağ tık ile çizilir/silinir)
+        if (window.isEditingMap && isRightClick) {
+            const gridX = Math.floor(mouseX / GRID_SIZE) * GRID_SIZE;
+            const gridY = Math.floor(mouseY / GRID_SIZE) * GRID_SIZE;
+            
+            const tool = window.currentEditorTool || 'wall'; // wall, crate, bush, tire
+            
+            if (e.shiftKey) {
+                // Obje silme
+                for (let category in window.dynamicSandboxData) {
+                    window.dynamicSandboxData[category] = window.dynamicSandboxData[category].filter(obj => 
+                        !(obj.x === gridX && obj.y === gridY)
+                    );
+                }
+            } else {
+                // Obje Ekleme
+                let arr = window.dynamicSandboxData.walls;
+                if (tool === 'crate') arr = window.dynamicSandboxData.crates;
+                if (tool === 'bush') arr = window.dynamicSandboxData.bushes;
+                if (tool === 'tire') arr = window.dynamicSandboxData.tires;
+                
+                // Aynı kategori içerisinde aynı yerde var mı kontrol et
+                const exists = arr.find(o => o.x === gridX && o.y === gridY);
+                if (!exists) {
+                    // Diğer kategorilerden de siliyoruz ki üst üste binmesin
+                    for (let category in window.dynamicSandboxData) {
+                        window.dynamicSandboxData[category] = window.dynamicSandboxData[category].filter(obj => 
+                            !(obj.x === gridX && obj.y === gridY)
+                        );
+                    }
+                    arr.push({ x: gridX, y: gridY, width: GRID_SIZE, height: GRID_SIZE });
+                }
+            }
+            
+            socketRef.emit('sandbox-update', window.dynamicSandboxData);
+            return;
+        }
+
+        // Normal oyun modu (Ateş etme)
+        if (isLeftClick && !window.isEditingMap) {
             if (window.myLatestPos) {
                 let dx = mouseX - window.myLatestPos.x;
                 let dy = mouseY - window.myLatestPos.y;

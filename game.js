@@ -1,16 +1,24 @@
 const map = require('./map');
 
 class Game {
-    constructor(io, lobby) {
+    constructor(io, roomId, roomData) {
         this.io = io;
-        this.lobby = lobby;
+        this.roomId = roomId;
+        this.roomData = roomData;
         this.players = {};
         this.bullets = [];
         this.explosions = [];
         this.FPS = 60;
 
+        // Custom map dynamic support
+        this.dynamicMap = { walls: [], bushes: [], destructibles: [] };
+
         // Start game loop
-        setInterval(() => this.update(), 1000 / this.FPS);
+        this.loopInterval = setInterval(() => this.update(), 1000 / this.FPS);
+    }
+
+    destroy() {
+        clearInterval(this.loopInterval);
     }
 
     addPlayer(socket, lobbyPlayer) {
@@ -454,7 +462,9 @@ class Game {
             let canMoveX = true;
             let canMoveY = true;
 
-            for (let wall of map.walls) {
+            const allWallsAndCrates = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates];
+
+            for (let wall of allWallsAndCrates) {
                 if (this.checkCollision({ x: nextX, y: p.y, width: p.width, height: p.height }, wall)) canMoveX = false;
                 if (this.checkCollision({ x: p.x, y: nextY, width: p.width, height: p.height }, wall)) canMoveY = false;
             }
@@ -486,11 +496,21 @@ class Game {
                 destroyed = true;
             }
 
-            // Wall continuous collision detection (Line to Rect)
+            // Wall and Crate collision detection (Line to Rect)
             if (!destroyed) {
-                for (let wall of map.walls) {
+                const allWallsAndCrates = [...map.walls, ...this.dynamicMap.walls, ...this.dynamicMap.crates];
+                for (let wall of allWallsAndCrates) {
                     if (this.lineIntersectsRect(b.x - b.vx, b.y - b.vy, b.x, b.y, wall)) {
                         destroyed = true;
+                        
+                        // Kutu parçalanma mekaniği (Destructible crates)
+                        let isCrate = this.dynamicMap.crates.includes(wall);
+                        if (isCrate) {
+                            this.dynamicMap.crates = this.dynamicMap.crates.filter(c => c !== wall);
+                            // Senkronizasyonu başlat (Clientlara gitsin diye)
+                            this.io.to(this.roomId).emit('sandboxSync', this.dynamicMap);
+                        }
+
                         break;
                     }
                 }
@@ -541,10 +561,11 @@ class Game {
             }
         }
 
-        this.io.emit('gameState', {
+        this.io.to(this.roomId).emit('gameState', {
             players: this.players,
             bullets: this.bullets,
-            explosions: this.explosions
+            explosions: this.explosions,
+            sandboxMap: this.dynamicMap // Pass sandbox layout if exists
         });
 
         this.explosions = [];

@@ -1,152 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <title>5v5 Tank Battle</title>
+  <title>Tank Legends - Alpha</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <style>
-    /* Inline additions for the new layout (ideally goes to style.css, but placing here for immediate testing) */
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #2c3e50;
-      font-family: Arial, sans-serif;
-      color: white;
-    }
-
-    #lobby-container {
-      padding: 50px;
-    }
-
-    #game-container {
-      position: relative;
-      display: none;
-    }
-
-    #hud {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 10px;
-      border-radius: 8px;
-    }
-
-    #scoreboard-ui {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 10;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 15px;
-      border-radius: 8px;
-      min-width: 200px;
-    }
-
-    .score-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 5px;
-    }
-
-    #skills-ui {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      display: flex;
-      gap: 20px;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 15px;
-      border-radius: 12px;
-    }
-
-    .skill-box {
-      width: 50px;
-      height: 50px;
-      border: 2px solid #7f8c8d;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 20px;
-      position: relative;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .skill-box.ready {
-      border-color: #2ecc71;
-      color: #2ecc71;
-    }
-
-    .skill-box.cooldown {
-      border-color: #e74c3c;
-      color: #e74c3c;
-      opacity: 0.5;
-    }
-
-    .skill-tooltip {
-      visibility: hidden;
-      position: absolute;
-      bottom: 65px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #34495e;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      white-space: nowrap;
-      color: white;
-      z-index: 11;
-    }
-
-    .skill-box:hover .skill-tooltip {
-      visibility: visible;
-    }
-
-    canvas {
-      background: #34495e;
-      display: block;
-    }
-  </style>
 </head>
-
 <body>
-  <div id="lobby-container">
-    <h1>5v5 Tank Battle Lobby</h1>
-    <div style="margin-bottom: 20px; text-align: center;">
-      <label for="player-name">Adınız:</label>
-      <input type="text" id="player-name" placeholder="Oyuncu Adı" maxlength="15"
-        style="padding: 5px; font-size: 16px;">
-    </div>
-    <div id="lobby-info">
-      <div>
-        <h3>Red Team</h3>
-        <ul id="red-players"></ul>
-        <button id="join-red">Join Red</button>
-        <button id="add-bot-red" style="margin-left:5px;">Add God AI</button>
-        <button id="remove-bot-red" style="margin-left:5px;">Kick God AI</button>
-      </div>
-      <div>
-        <h3>Blue Team</h3>
-        <ul id="blue-players"></ul>
-        <button id="join-blue">Join Blue</button>
-        <button id="add-bot-blue" style="margin-left:5px;">Add God AI</button>
-        <button id="remove-bot-blue" style="margin-left:5px;">Kick God AI</button>
-      </div>
+  <!-- Login / Profile Gateway -->
+  <div id="login-container" class="full-screen-modal">
+    <div class="glass-panel">
+        <h1 style="margin-top: 0; color: #f1c40f;">Tank Legends</h1>
+        <p style="color: #bdc3c7; margin-bottom: 20px;">Your progress and layouts will be saved locally in this alpha version.</p>
+        <input type="text" id="username-input" class="styled-input" placeholder="Choose a Username" maxlength="15">
+        <button id="login-btn" class="btn-primary" style="width: 100%; margin-top: 15px;">Enter Game</button>
     </div>
   </div>
 
-  <div id="game-container">
+  <!-- Main UI Overlay -->
+  <div id="main-ui" style="display: none;">
+      <nav class="top-nav glass-panel">
+          <div class="nav-brand">Tank Legends</div>
+          <div class="nav-profile">
+              <span id="nav-username" style="font-weight: bold; margin-right: 15px;">Player</span>
+              <div class="xp-bar-container" title="Level 1 - 0/100 XP">
+                  <div class="xp-bar" id="nav-xp-bar" style="width: 0%;"></div>
+              </div>
+          </div>
+      </nav>
+
+      <div class="dashboard-content">
+          <!-- Room Browser -->
+          <div class="panel glass-panel room-browser">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="margin: 0;">🌐 Room Browser</h2>
+                <div>
+                    <button id="refresh-rooms-btn" class="btn-secondary">↻ Refresh</button>
+                    <button id="create-room-btn" class="btn-primary">Create Room</button>
+                </div>
+              </div>
+              <ul id="rooms-list" class="styled-list">
+                  <!-- JS populated -->
+              </ul>
+          </div>
+
+          <!-- Sandbox Layouts (Mock) -->
+          <div class="panel glass-panel layout-manager">
+              <h2 style="margin: 0 0 5px 0;">🛠️ My Layouts <span class="slot-count" id="slot-count-text">(1/1 Slots)</span></h2>
+              <p class="subtext">Play matches to earn XP and unlock up to 5 layout slots.</p>
+              <ul id="layout-list" class="styled-list">
+                  <li><button class="btn-secondary load-layout">Slot 1 - Custom Map (Empty)</button></li>
+                  <li><button class="btn-disabled" disabled>Slot 2 (Unlocks at Lvl 5)</button></li>
+                  <li><button class="btn-disabled" disabled>Slot 3 (Unlocks at Lvl 10)</button></li>
+                  <li><button class="btn-disabled" disabled>Slot 4 (Unlocks at Lvl 15)</button></li>
+                  <li><button class="btn-disabled" disabled>Slot 5 (Unlocks at Lvl 20)</button></li>
+              </ul>
+          </div>
+      </div>
+  </div>
+
+  <!-- Room Creation Modal -->
+  <div id="create-room-modal" class="modal-overlay" style="display:none;">
+      <div class="glass-panel">
+          <h2 style="margin-top: 0;">Create New Room</h2>
+          <div style="margin-bottom: 15px;">
+              <label style="display: block; margin-bottom: 5px;">Room Name</label>
+              <input type="text" id="new-room-name" class="styled-input" value="Epic Battle">
+          </div>
+          <div style="margin-bottom: 20px;">
+              <label style="display: block; margin-bottom: 5px;">Game Mode</label>
+              <select id="new-room-mode" class="styled-input">
+                  <option value="classic">Classic 5v5</option>
+                  <option value="sandbox">Sandbox (Map Editor Allowed)</option>
+              </select>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+              <button id="cancel-create-room" class="btn-secondary">Cancel</button>
+              <button id="confirm-create-room" class="btn-primary">Create Room</button>
+          </div>
+      </div>
+  </div>
+
+  <!-- Room Lobby (Waiting Room) -->
+  <div id="room-lobby-container" style="display: none;" class="full-screen-modal">
+      <div class="glass-panel wide-panel" style="position: relative;">
+          <h1 id="lobby-room-name" style="margin-top: 0; color: #f1c40f;">Room Name</h1>
+          <p id="lobby-room-mode" style="margin-top: -15px; color: #bdc3c7;">Mode: Classic</p>
+          <button id="leave-room-btn" class="btn-secondary" style="position:absolute; top:20px; right:20px;">Leave Room</button>
+          
+          <div id="admin-controls" style="display:none; margin-bottom: 20px; background: rgba(231, 76, 60, 0.2); padding: 10px; border-radius: 8px;">
+              <h3 style="margin-top:0; color:#e74c3c;">👑 Admin Controls</h3>
+              <p class="subtext" style="margin-bottom: 10px;">You are the host. Click the (X) next to players to kick them.</p>
+              <button id="open-map-editor" class="btn-primary" style="display:none;">Open Map Editor (Sandbox)</button>
+          </div>
+
+          <div class="team-selection">
+              <div class="team-box red-team">
+                  <h3>Red Team</h3>
+                  <ul id="red-players" class="styled-list player-list-lob"></ul>
+                  <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <button id="join-red" class="btn-primary red-btn" style="flex: 1;">Join Red</button>
+                    <button id="add-bot-red" class="btn-secondary" style="padding: 5px 10px;">+Bot</button>
+                    <button id="remove-bot-red" class="btn-secondary" style="padding: 5px 10px;">-Bot</button>
+                  </div>
+              </div>
+              <div class="team-box blue-team">
+                  <h3>Blue Team</h3>
+                  <ul id="blue-players" class="styled-list player-list-lob"></ul>
+                  <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                      <button id="join-blue" class="btn-primary blue-btn" style="flex: 1;">Join Blue</button>
+                      <button id="add-bot-blue" class="btn-secondary" style="padding: 5px 10px;">+Bot</button>
+                      <button id="remove-bot-blue" class="btn-secondary" style="padding: 5px 10px;">-Bot</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- Game HUD & Canvas -->
+  <div id="game-container" style="display: none;">
     <div id="hud">
       <h2>Team Score</h2>
       <div>Kırmızı: <span id="score-red" style="color:#e74c3c; font-weight:bold;">0</span></div>
       <div>Mavi: <span id="score-blue" style="color:#3498db; font-weight:bold;">0</span></div>
+    </div>
+
+    <!-- Map Editor Toolbar -->
+    <div id="map-editor-toolbar" style="display:none; position: fixed; top: 100px; left: 10px; z-index: 20;" class="glass-panel">
+        <h3 style="margin:0 0 10px 0;">🛠️ Sandbox</h3>
+        <p class="subtext" style="max-width: 200px;">Right-click to place objects on the grid. Hold Shift & Right-click to delete.</p>
+        <div class="editor-tools" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
+            <button class="editor-tool active" data-tool="wall">🧱 Wall (Solid)</button>
+            <button class="editor-tool" data-tool="crate">📦 Crate (Breakable)</button>
+            <button class="editor-tool" data-tool="bush">🌿 Bush (Hiding)</button>
+            <button class="editor-tool" data-tool="tire">🛞 Tires (Bouncy)</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <button id="btn-save-layout" class="btn-primary" style="font-size: 12px; padding: 5px;">Save Layout (Slot 1)</button>
+            <button id="btn-close-editor" class="btn-secondary" style="font-size: 12px; padding: 5px;">Close Editor</button>
+        </div>
     </div>
 
     <div id="scoreboard-ui">
@@ -166,38 +158,24 @@
       </div>
     </div>
 
-    <!-- Ses Ayarları Butonu -->
     <button id="voice-settings-btn" style="position:fixed; bottom:20px; right:20px; z-index:10; background:rgba(0,0,0,0.7); color:white; border:2px solid #7f8c8d; padding:10px; border-radius:8px; cursor:pointer;">
       🎤 Ses Ayarları
     </button>
 
-    <!-- Ses Ayarları Modalı -->
     <div id="voice-settings-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; background:rgba(44, 62, 80, 0.95); padding:20px; border-radius:10px; border:2px solid #34495e; min-width:300px; max-height:80vh; overflow-y:auto; box-shadow:0 0 20px rgba(0,0,0,0.8);">
         <h2 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:10px;">🎙️ Ses & Mikrofon</h2>
-        
         <div style="margin-bottom:15px;">
             <label>Master Ses: <span id="vol-display">100%</span></label><br>
             <input type="range" id="master-volume" min="0" max="1" step="0.05" value="1" style="width:100%;">
         </div>
-
-        <div style="margin-bottom:15px; display:flex; gap:15px;">
-            <label style="cursor:pointer;">
-                <input type="checkbox" id="mute-mic"> Mikrofonu Kapat
-            </label>
-            <label style="cursor:pointer;" title="Konuşmak için 'V' tuşuna basılı tutun">
-                <input type="checkbox" id="ptt-enable"> Bas-Konuş (V Tuşu)
-            </label>
+        <div style="margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+            <label style="cursor:pointer;"><input type="checkbox" id="mute-mic"> Mikrofonu Kapat</label>
+            <label style="cursor:pointer;" title="Konuşmak için 'V' tuşuna basılı tutun"><input type="checkbox" id="ptt-enable"> Bas-Konuş (V Tuşu)</label>
         </div>
-
         <h3 style="margin-bottom:5px;">Oyuncular</h3>
-        <p style="font-size:11px; color:#bdc3c7; margin-top:0;">Tek tek susturmak için oyuncuları seçin.</p>
-        <div id="voice-player-list" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; max-height:200px; overflow-y:auto;">
-            <!-- Dinamik olarak doldurulacak -->
-        </div>
-
-        <button id="close-voice-settings" style="margin-top:20px; width:100%; padding:10px; background:#e74c3c; border:none; color:white; font-weight:bold; border-radius:5px; cursor:pointer;">
-            Kapat
-        </button>
+        <p style="font-size:11px; color:#bdc3c7; margin-top:0;">Susturmak için seçin.</p>
+        <div id="voice-player-list" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; max-height:200px; overflow-y:auto;"></div>
+        <button id="close-voice-settings" style="margin-top:20px; width:100%; padding:10px; background:#e74c3c; border:none; color:white; font-weight:bold; border-radius:5px; cursor:pointer;">Kapat</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>

@@ -8,57 +8,89 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-const Lobby = require('./lobby');
-const Game = require('./game');
-
-const lobby = new Lobby();
-const game = new Game(io, lobby);
+const RoomManager = require('./roomManager');
+const roomManager = new RoomManager(io);
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    // Lobi işlemleri
-    lobby.addPlayer(socket);
-    lobby.broadcastState(io);
+    // İlk açılışta odaları yolla
+    socket.emit('roomsList', roomManager.getRoomsList());
+
+    socket.on('getRooms', () => {
+        socket.emit('roomsList', roomManager.getRoomsList());
+    });
+
+    socket.on('createRoom', (data) => {
+        const roomId = roomManager.createRoom(socket, data.roomName, data.settings, data.playerName);
+        socket.emit('roomJoined', roomId);
+        io.emit('roomsList', roomManager.getRoomsList()); // Update all lobby lists
+    });
+
+    socket.on('joinRoom', (data) => {
+        const success = roomManager.joinRoom(socket, data.roomId, data.playerName);
+        if (success) {
+            socket.emit('roomJoined', data.roomId);
+            io.emit('roomsList', roomManager.getRoomsList());
+        } else {
+            socket.emit('errorMsg', 'Room not found or full.');
+        }
+    });
+
+    socket.on('leaveRoom', () => {
+        roomManager.leaveRoom(socket);
+        socket.emit('roomLeft');
+        io.emit('roomsList', roomManager.getRoomsList());
+    });
 
     socket.on('joinTeam', (data) => {
-        const team = data.team;
-        const name = data.name;
-        lobby.joinTeam(socket, team, name);
-        lobby.broadcastState(io);
-
-        // Eğer lobi hazırsa (örn. oyun başlamalıysa) oyunu başlatabiliriz.
-        // Şimdilik oyuncular takıma katıldıklarında direkt oyuna dahil ediyoruz.
-        game.addPlayer(socket, lobby.players[socket.id]);
+        roomManager.joinTeam(socket, data.team, data.name);
     });
 
-    // Oyun içi (Input) eylemler
+    socket.on('kickPlayer', (targetId) => {
+        roomManager.kickPlayer(socket, targetId);
+    });
+
+    // Oyun İçi Eylemler
     socket.on('input', (data) => {
-        game.handleInput(socket.id, data);
+        const game = roomManager.getGame(socket);
+        if (game) game.handleInput(socket.id, data);
     });
 
-    // Ateş etme (Mouse tıklama veya boşluk)
     socket.on('shoot', (angle) => {
-        game.handleShoot(socket.id, angle);
+        const game = roomManager.getGame(socket);
+        if (game) game.handleShoot(socket.id, angle);
     });
 
     socket.on('useSkill', (skill) => {
-        game.handleSkill(socket.id, skill);
+        const game = roomManager.getGame(socket);
+        if (game) game.handleSkill(socket.id, skill);
     });
 
     socket.on('addBot', (team) => {
-        game.addBot(team);
+        const game = roomManager.getGame(socket);
+        if (game) game.addBot(team);
     });
 
     socket.on('removeBot', (team) => {
-        game.removeBot(team);
+        const game = roomManager.getGame(socket);
+        if (game) game.removeBot(team);
+    });
+
+    socket.on('sandbox-update', (dynamicMap) => {
+        const game = roomManager.getGame(socket);
+        const roomId = roomManager.getRoomId(socket);
+        if (game && roomManager.rooms[roomId] && roomManager.rooms[roomId].hostId === socket.id) {
+            game.dynamicMap = dynamicMap;
+            // Trigger an immediate sync for clients
+            io.to(roomId).emit('sandboxSync', dynamicMap);
+        }
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
-        game.removePlayer(socket.id);
-        lobby.removePlayer(socket.id);
-        lobby.broadcastState(io);
+        roomManager.leaveRoom(socket);
+        io.emit('roomsList', roomManager.getRoomsList());
         
         // Notify others to remove voice connection
         socket.broadcast.emit('voice-user-left', socket.id);

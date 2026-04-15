@@ -63,10 +63,54 @@ function renderGame(state, myId) {
     ctx.lineWidth = 10;
     ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-    // Duvarları Çiz
+    const sMap = state.sandboxMap || window.dynamicSandboxData || { walls: [], crates: [], bushes: [], tires: [] };
+    
+    // Editor ızgarası (Grid)
+    if (window.isEditingMap) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        const GRID_SIZE = 40;
+        ctx.beginPath();
+        for (let x = 0; x <= MAP_WIDTH; x += GRID_SIZE) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, MAP_HEIGHT);
+        }
+        for (let y = 0; y <= MAP_HEIGHT; y += GRID_SIZE) {
+            ctx.moveTo(0, y); ctx.lineTo(MAP_WIDTH, y);
+        }
+        ctx.stroke();
+    }
+
+    // Sabit Duvarları Çiz
     ctx.fillStyle = '#7f8c8d';
     for (let wall of walls) {
         ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+    }
+    
+    // Dinamik Duvarları Çiz
+    ctx.fillStyle = '#95a5a6';
+    for (let w of (sMap.walls || [])) {
+        ctx.fillRect(w.x, w.y, w.width, w.height);
+        ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 2;
+        ctx.strokeRect(w.x+2, w.y+2, w.width-4, w.height-4);
+    }
+
+    // Dinamik Kutuları (Crates) Çiz
+    for (let c of (sMap.crates || [])) {
+        ctx.fillStyle = '#d35400';
+        ctx.fillRect(c.x, c.y, c.width, c.height);
+        ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 2;
+        ctx.strokeRect(c.x + 4, c.y + 4, c.width - 8, c.height - 8);
+    }
+
+    // Dinamik Lastikleri (Tires) Çiz
+    for (let t of (sMap.tires || [])) {
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(t.x + t.width/2, t.y + t.height/2, t.width/2 - 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#34495e';
+        ctx.stroke();
     }
 
     // Mermileri Çiz (Ateş edildiği andaki açıyla ilerliyor)
@@ -174,6 +218,15 @@ function renderGame(state, myId) {
             ctx.lineWidth = 2;
             ctx.strokeRect(p.x - p.width / 2 - 2, p.y - p.height / 2 - 2, p.width + 4, p.height + 4);
         }
+    }
+
+    // Çalıları (Bushes) en üste çiz (Tankların üzerine)
+    for (let b of (sMap.bushes || [])) {
+        ctx.fillStyle = 'rgba(39, 174, 96, 0.9)'; // Koyu yeşil opak
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        ctx.fillStyle = 'rgba(46, 204, 113, 0.9)'; // Açık yeşil doku
+        ctx.fillRect(b.x + 8, b.y + 8, 12, 12);
+        ctx.fillRect(b.x + 24, b.y + 24, 8, 8);
     }
 
     // Skor Tablosunu Güncelle (Takım & Liderlik Tablosu)
