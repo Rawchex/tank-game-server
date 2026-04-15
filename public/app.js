@@ -1,4 +1,5 @@
 const socket = window.socket;
+let engine = null; // Engine 2.0 Instance
 
 /* --- GLOBAL UI ELEMENTS --- */
 const browserScreen = document.getElementById('browser-screen');
@@ -504,8 +505,28 @@ document.getElementById('remove-bot-blue').addEventListener('click', () => socke
 
 function startGame() {
     showScreen('game-screen');
+    
+    // Initialize Engine 2.0 if not already done
+    if (!engine) {
+        engine = new EngineController(socket, window.EngineConfig, window.EnginePhysics);
+        setupSandboxPlacement();
+    }
+    
     if(typeof initInput === 'function') initInput(socket);
     if(typeof initVoiceChat === 'function') initVoiceChat();
+}
+
+/**
+ * SANDBOX FIX: Dedicated placement listener with coordinate mapping
+ */
+function setupSandboxPlacement() {
+    const canvas = document.getElementById('gameCanvas');
+    canvas.addEventListener('mousedown', (e) => {
+        if (!window.isEditingMap || !isRoomAdmin) return;
+        
+        // Use the engine's snapped world coordinates
+        engine.placeObject(window.currentEditorTool, e.clientX, e.clientY);
+    });
 }
 
 /* --- IN-GAME CHAT LOGIC --- */
@@ -565,33 +586,21 @@ socket.on('team_full', (data) => {
     alert(`The ${data.team} team is full! Max 5 members allowed.`);
 });
 
+// State handled by ClientEngine loop now
 socket.on('gameState', (state) => {
-    window.gameState = state; // Central state for the entire engine
+    window.gameState = state; // Keep for legacy UI pieces
     window.latestGameSettings = state.settings || { mode: 'classic' };
     
-    // Update lobby info display
     const lName = document.getElementById('lobby-room-name');
     if (lName) lName.innerText = state.name || 'Room';
     
     const lMode = document.getElementById('lobby-room-mode');
     if (lMode) lMode.innerText = `Mode: ${window.latestGameSettings.mode.toUpperCase()}`;
 
-    // Adjust visibility of panels dynamically if we are host and in lobby
     if (isRoomAdmin && roomLobbyContainerVisible()) {
        if (sandboxHostPanel) sandboxHostPanel.style.display = window.latestGameSettings.mode === 'sandbox' ? 'block' : 'none';
     }
 });
-
-// --- ENGINE LOOP (High Performance Rendering & Interpolation) ---
-function engineLoop() {
-    if ((myTeam || window.isEditingMap) && typeof renderGame === 'function') {
-        if (window.gameState) {
-            renderGame(window.gameState, socket.id);
-        }
-    }
-    requestAnimationFrame(engineLoop);
-}
-requestAnimationFrame(engineLoop);
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {

@@ -79,10 +79,19 @@ io.on('connection', (socket) => {
         roomManager.kickPlayer(socket, targetId);
     });
 
-    // Oyun İçi Eylemler
-    socket.on('input', (data) => {
+    // Oyun İçi Eylemler (Engine 2.0)
+    socket.on('playerInput', (data) => {
         const game = roomManager.getGame(socket);
-        if (game) game.handleInput(socket.id, data);
+        if (game) game.handlePlayerInput(socket.id, data);
+    });
+
+    socket.on('sandbox-place', (data) => {
+        const game = roomManager.getGame(socket);
+        const roomId = roomManager.getRoomId(socket);
+        const room = roomManager.rooms[roomId];
+        if (game && room && room.hostId === socket.id) {
+            game.handleSandboxPlace(data.type, data.x, data.y);
+        }
     });
 
     socket.on('shoot', (angle) => {

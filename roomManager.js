@@ -1,4 +1,4 @@
-const Game = require('./game');
+const MatchInstance = require('./server/MatchInstance');
 
 class RoomManager {
     constructor(io) {
@@ -22,8 +22,8 @@ class RoomManager {
         this.playersToRoom[socket.id] = roomId;
         this.rooms[roomId].players[socket.id] = { team: null, isHost: true, name: playerName };
         
-        // Initialize Game
-        this.rooms[roomId].game = new Game(this.io, roomId, this.rooms[roomId]);
+        // Initialize Engine 2.0 Match
+        this.rooms[roomId].game = new MatchInstance(this.io, roomId, this.rooms[roomId]);
         
         return roomId;
     }
