@@ -8,6 +8,7 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
+const db = require('./database');
 const RoomManager = require('./roomManager');
 const roomManager = new RoomManager(io);
 
@@ -16,6 +17,27 @@ io.on('connection', (socket) => {
 
     // İlk açılışta odaları yolla
     socket.emit('roomsList', roomManager.getRoomsList());
+
+    socket.on('auth', (data) => {
+        let res;
+        if (data.type === 'register') {
+            // Basit captcha kontrolü sunucuda da teyit edilebilir
+            // Fakat oyun basit olduğu için client gönderiyor
+            if (parseInt(data.captchaAns) !== data.expectedCaptcha) {
+                return socket.emit('authResponse', { success: false, msg: "Matematik işleminin sonucu hatalı!" });
+            }
+            res = db.register(data.username, data.password);
+        } else {
+            res = db.login(data.username, data.password);
+        }
+        socket.emit('authResponse', res);
+    });
+
+    socket.on('saveLayout', (data) => {
+        if (db.saveLayout(data.username, data.slot, data.layout)) {
+            socket.emit('userDataUpdate', db.getUserData(data.username));
+        }
+    });
 
     socket.on('getRooms', () => {
         socket.emit('roomsList', roomManager.getRoomsList());

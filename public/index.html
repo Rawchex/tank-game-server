@@ -2,67 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Tank Legends - Alpha</title>
+  <title>Tank Legends - Beta</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Login / Profile Gateway -->
-  <div id="login-container" class="full-screen-modal">
-    <div class="glass-panel">
-        <h1 style="margin-top: 0; color: #f1c40f;">Tank Legends</h1>
-        <p style="color: #bdc3c7; margin-bottom: 20px;">Your progress and layouts will be saved locally in this alpha version.</p>
-        <input type="text" id="username-input" class="styled-input" placeholder="Choose a Username" maxlength="15">
-        <button id="login-btn" class="btn-primary" style="width: 100%; margin-top: 15px;">Enter Game</button>
+
+  <!-- 1. AUTH SCREEN -->
+  <div id="auth-screen" class="screen full-screen-modal active">
+    <div class="glass-panel" style="width: 400px;">
+        <h1 style="margin-top: 0; color: #f1c40f; text-align: center; letter-spacing: 2px;">TANK LEGENDS</h1>
+        <p style="text-align: center; color: #bdc3c7; font-size: 14px; margin-bottom: 25px;">Login or sign up to save your progress</p>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button id="tab-login" class="btn-primary" style="flex:1;">Login</button>
+            <button id="tab-register" class="btn-secondary" style="flex:1;">Sign Up</button>
+        </div>
+
+        <div id="auth-form-area">
+            <input type="text" id="auth-username" class="styled-input" placeholder="Username" maxlength="15">
+            <input type="password" id="auth-password" class="styled-input" placeholder="Password" maxlength="20">
+            
+            <div id="register-fields" style="display:none; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <p style="margin:0 0 10px 0; font-size:13px; color: #f1c40f; font-weight: bold;">Bot Check</p>
+                <label id="captcha-question" style="font-size: 14px;">What is X + Y?</label>
+                <input type="number" id="auth-captcha" class="styled-input" placeholder="Answer" style="margin-top: 5px;">
+            </div>
+
+            <button id="auth-submit-btn" class="btn-primary" style="width: 100%; margin-top: 10px; font-size: 18px; padding: 12px;">Login to Game</button>
+        </div>
+        <p id="auth-error" style="color: #e74c3c; font-size: 13px; text-align: center; margin-top: 15px; height: 15px;"></p>
     </div>
   </div>
 
-  <!-- Main UI Overlay -->
-  <div id="main-ui" style="display: none;">
-      <nav class="top-nav glass-panel">
+  <!-- 2. MAIN MENU SCREEN -->
+  <div id="main-menu-screen" class="screen full-screen-modal" style="display:none;">
+      <nav class="top-nav glass-panel" style="position: absolute; top: 20px; width: 90%; max-width: 1200px;">
           <div class="nav-brand">Tank Legends</div>
           <div class="nav-profile">
-              <span id="nav-username" style="font-weight: bold; margin-right: 15px;">Player</span>
-              <div class="xp-bar-container" title="Level 1 - 0/100 XP">
+              <span id="nav-username" style="font-weight: bold; margin-right: 15px; font-size: 18px;">Player</span>
+              <div class="xp-bar-container" title="Level 1 - 0/100 XP" id="nav-xp-tooltip">
                   <div class="xp-bar" id="nav-xp-bar" style="width: 0%;"></div>
               </div>
           </div>
       </nav>
 
-      <div class="dashboard-content">
-          <!-- Room Browser -->
-          <div class="panel glass-panel room-browser">
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
-                <h2 style="margin: 0;">🌐 Room Browser</h2>
-                <div>
-                    <button id="refresh-rooms-btn" class="btn-secondary">↻ Refresh</button>
-                    <button id="create-room-btn" class="btn-primary">Create Room</button>
-                </div>
-              </div>
-              <ul id="rooms-list" class="styled-list">
-                  <!-- JS populated -->
-              </ul>
-          </div>
-
-          <!-- Sandbox Layouts (Mock) -->
-          <div class="panel glass-panel layout-manager">
-              <h2 style="margin: 0 0 5px 0;">🛠️ My Layouts <span class="slot-count" id="slot-count-text">(1/1 Slots)</span></h2>
-              <p class="subtext">Play matches to earn XP and unlock up to 5 layout slots.</p>
-              <ul id="layout-list" class="styled-list">
-                  <li><button class="btn-secondary load-layout">Slot 1 - Custom Map (Empty)</button></li>
-                  <li><button class="btn-disabled" disabled>Slot 2 (Unlocks at Lvl 5)</button></li>
-                  <li><button class="btn-disabled" disabled>Slot 3 (Unlocks at Lvl 10)</button></li>
-                  <li><button class="btn-disabled" disabled>Slot 4 (Unlocks at Lvl 15)</button></li>
-                  <li><button class="btn-disabled" disabled>Slot 5 (Unlocks at Lvl 20)</button></li>
-              </ul>
-          </div>
+      <div class="main-menu-buttons">
+          <button id="btn-play-online" class="btn-primary mega-btn">PLAY ONLINE</button>
+          <button id="btn-profile" class="btn-secondary mega-btn">PROFILE & STATS</button>
+          <button id="btn-logout" class="btn-danger mega-btn">LOGOUT</button>
       </div>
   </div>
 
-  <!-- Room Creation Modal -->
-  <div id="create-room-modal" class="modal-overlay" style="display:none;">
-      <div class="glass-panel">
-          <h2 style="margin-top: 0;">Create New Room</h2>
+  <!-- 3. SERVER BROWSER SCREEN -->
+  <div id="browser-screen" class="screen full-screen-modal" style="display:none;">
+    <div class="glass-panel" style="width: 80%; max-width: 900px; height: 80%; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button id="btn-back-to-main" class="btn-secondary">◄ Back to Menu</button>
+                <h2 style="margin: 0;">🌐 Server Browser</h2>
+            </div>
+            <div>
+                <button id="refresh-rooms-btn" class="btn-secondary">↻ Refresh</button>
+                <button id="create-room-btn" class="btn-primary">Host Game</button>
+            </div>
+        </div>
+        <ul id="rooms-list" class="styled-list" style="flex:1;">
+            <li style="justify-content:center; color:#7f8c8d;">Finding rooms...</li>
+        </ul>
+    </div>
+  </div>
+
+  <!-- Room Creation Modal (Overlay inside Browser) -->
+  <div id="create-room-modal" class="modal-overlay" style="display:none; position:absolute; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center;">
+      <div class="glass-panel" style="width: 400px;">
+          <h2 style="margin-top: 0;">Host New Game</h2>
           <div style="margin-bottom: 15px;">
               <label style="display: block; margin-bottom: 5px;">Room Name</label>
               <input type="text" id="new-room-name" class="styled-input" value="Epic Battle">
@@ -81,24 +95,43 @@
       </div>
   </div>
 
-  <!-- Room Lobby (Waiting Room) -->
-  <div id="room-lobby-container" style="display: none;" class="full-screen-modal">
+  <!-- 4. ROOM LOBBY SCREEN -->
+  <div id="lobby-screen" class="screen full-screen-modal" style="display: none;">
       <div class="glass-panel wide-panel" style="position: relative;">
-          <h1 id="lobby-room-name" style="margin-top: 0; color: #f1c40f;">Room Name</h1>
-          <p id="lobby-room-mode" style="margin-top: -15px; color: #bdc3c7;">Mode: Classic</p>
-          <button id="leave-room-btn" class="btn-secondary" style="position:absolute; top:20px; right:20px;">Leave Room</button>
+          <div style="display:flex; justify-content:space-between; align-items: flex-start;">
+              <div>
+                  <h1 id="lobby-room-name" style="margin-top: 0; color: #f1c40f;">Room Name</h1>
+                  <p id="lobby-room-mode" style="margin-top: -10px; margin-bottom: 20px; color: #bdc3c7;">Mode: Classic</p>
+              </div>
+              <button id="leave-room-btn" class="btn-danger">Leave Game</button>
+          </div>
           
-          <div id="admin-controls" style="display:none; margin-bottom: 20px; background: rgba(231, 76, 60, 0.2); padding: 10px; border-radius: 8px;">
-              <h3 style="margin-top:0; color:#e74c3c;">👑 Admin Controls</h3>
-              <p class="subtext" style="margin-bottom: 10px;">You are the host. Click the (X) next to players to kick them.</p>
-              <button id="open-map-editor" class="btn-primary" style="display:none;">Open Map Editor (Sandbox)</button>
+          <div id="admin-controls" style="display:none; margin-bottom: 20px; background: rgba(0, 0, 0, 0.4); padding: 15px; border-radius: 8px; border: 1px solid #e74c3c;">
+              <h3 style="margin-top:0; color:#e74c3c;">👑 Host Settings</h3>
+              <p class="subtext" style="margin-bottom: 15px;">You are the host. You can manage players and sandbox layouts.</p>
+              
+              <div id="sandbox-host-panel" style="display:none; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; margin-bottom: 15px;">
+                  <h4 style="margin-top:0; color:#3498db;">🛠️ Sandbox Layouts</h4>
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                      <select id="layout-select" class="styled-input" style="margin-bottom:0; flex:1;">
+                          <option value="-1">Default Sandbox</option>
+                          <option value="0" id="slot-0-opt">Slot 1 (Empty)</option>
+                          <option value="1" id="slot-1-opt" disabled>Slot 2 (Unlocks Lvl 5)</option>
+                          <option value="2" id="slot-2-opt" disabled>Slot 3 (Unlocks Lvl 10)</option>
+                          <option value="3" id="slot-3-opt" disabled>Slot 4 (Unlocks Lvl 15)</option>
+                          <option value="4" id="slot-4-opt" disabled>Slot 5 (Unlocks Lvl 20)</option>
+                      </select>
+                      <button id="load-layout-btn" class="btn-secondary">Load Map</button>
+                      <button id="open-map-editor" class="btn-primary">🎨 Editor Mode</button>
+                  </div>
+              </div>
           </div>
 
           <div class="team-selection">
               <div class="team-box red-team">
                   <h3>Red Team</h3>
-                  <ul id="red-players" class="styled-list player-list-lob"></ul>
-                  <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                  <ul id="red-players" class="styled-list player-list-lob" style="min-height: 150px;"></ul>
+                  <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px;">
                     <button id="join-red" class="btn-primary red-btn" style="flex: 1;">Join Red</button>
                     <button id="add-bot-red" class="btn-secondary" style="padding: 5px 10px;">+Bot</button>
                     <button id="remove-bot-red" class="btn-secondary" style="padding: 5px 10px;">-Bot</button>
@@ -106,8 +139,8 @@
               </div>
               <div class="team-box blue-team">
                   <h3>Blue Team</h3>
-                  <ul id="blue-players" class="styled-list player-list-lob"></ul>
-                  <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                  <ul id="blue-players" class="styled-list player-list-lob" style="min-height: 150px;"></ul>
+                  <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px;">
                       <button id="join-blue" class="btn-primary blue-btn" style="flex: 1;">Join Blue</button>
                       <button id="add-bot-blue" class="btn-secondary" style="padding: 5px 10px;">+Bot</button>
                       <button id="remove-bot-blue" class="btn-secondary" style="padding: 5px 10px;">-Bot</button>
@@ -117,27 +150,30 @@
       </div>
   </div>
 
-  <!-- Game HUD & Canvas -->
-  <div id="game-container" style="display: none;">
+  <!-- 5. GAME CONTAINER -->
+  <div id="game-screen" class="screen" style="display: none; position: relative;">
     <div id="hud">
-      <h2>Team Score</h2>
-      <div>Kırmızı: <span id="score-red" style="color:#e74c3c; font-weight:bold;">0</span></div>
-      <div>Mavi: <span id="score-blue" style="color:#3498db; font-weight:bold;">0</span></div>
+      <div style="color:#e74c3c;">Red: <span id="score-red">0</span></div>
+      <div style="color:#3498db;">Blue: <span id="score-blue">0</span></div>
     </div>
 
-    <!-- Map Editor Toolbar -->
-    <div id="map-editor-toolbar" style="display:none; position: fixed; top: 100px; left: 10px; z-index: 20;" class="glass-panel">
+    <!-- Map Editor Toolbar (In Game) -->
+    <div id="map-editor-toolbar" style="display:none; position: fixed; top: 80px; left: 10px; z-index: 20;" class="glass-panel">
         <h3 style="margin:0 0 10px 0;">🛠️ Sandbox</h3>
-        <p class="subtext" style="max-width: 200px;">Right-click to place objects on the grid. Hold Shift & Right-click to delete.</p>
+        <p class="subtext" style="max-width: 200px; font-size: 11px;">Right-click to place. Shift+Right-click to delete.</p>
         <div class="editor-tools" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;">
-            <button class="editor-tool active" data-tool="wall">🧱 Wall (Solid)</button>
-            <button class="editor-tool" data-tool="crate">📦 Crate (Breakable)</button>
-            <button class="editor-tool" data-tool="bush">🌿 Bush (Hiding)</button>
-            <button class="editor-tool" data-tool="tire">🛞 Tires (Bouncy)</button>
+            <button class="editor-tool active" data-tool="wall">🧱 Wall</button>
+            <button class="editor-tool" data-tool="crate">📦 Breakable Crate</button>
+            <button class="editor-tool" data-tool="bush">🌿 Bush (Hide)</button>
+            <button class="editor-tool" data-tool="tire">🛞 Tires</button>
         </div>
         <div style="display:flex; flex-direction:column; gap:8px;">
-            <button id="btn-save-layout" class="btn-primary" style="font-size: 12px; padding: 5px;">Save Layout (Slot 1)</button>
-            <button id="btn-close-editor" class="btn-secondary" style="font-size: 12px; padding: 5px;">Close Editor</button>
+            <select id="save-layout-slot" class="styled-input" style="padding: 5px; font-size: 12px; margin-bottom:0;">
+                <option value="0">Save to Slot 1</option>
+            </select>
+            <button id="btn-save-layout" class="btn-primary" style="font-size: 12px; padding: 5px;">Save Layout</button>
+            <hr style="border-color: rgba(255,255,255,0.1); width: 100%;">
+            <button id="btn-close-editor" class="btn-danger" style="font-size: 12px; padding: 5px;">Exit Editor</button>
         </div>
     </div>
 
@@ -147,36 +183,30 @@
     </div>
 
     <div id="skills-ui">
-      <div id="skill-z" class="skill-box ready">Z
-        <span class="skill-tooltip">Heal (Can basar)</span>
-      </div>
-      <div id="skill-x" class="skill-box ready">X
-        <span class="skill-tooltip">Speed Boost (Hızlandırır)</span>
-      </div>
-      <div id="skill-c" class="skill-box ready">C
-        <span class="skill-tooltip">Rapid Fire (Seri Ateş)</span>
-      </div>
+      <div id="skill-z" class="skill-box ready">Z<span class="skill-tooltip">Heal</span></div>
+      <div id="skill-x" class="skill-box ready">X<span class="skill-tooltip">Speed</span></div>
+      <div id="skill-c" class="skill-box ready">C<span class="skill-tooltip">Rapid Fire</span></div>
     </div>
 
-    <button id="voice-settings-btn" style="position:fixed; bottom:20px; right:20px; z-index:10; background:rgba(0,0,0,0.7); color:white; border:2px solid #7f8c8d; padding:10px; border-radius:8px; cursor:pointer;">
-      🎤 Ses Ayarları
-    </button>
+    <button id="voice-settings-btn" style="position:fixed; bottom:20px; right:20px; z-index:10; background:rgba(0,0,0,0.7); border:2px solid #7f8c8d; border-radius:8px; cursor:pointer;">🎤 Settings</button>
 
-    <div id="voice-settings-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; background:rgba(44, 62, 80, 0.95); padding:20px; border-radius:10px; border:2px solid #34495e; min-width:300px; max-height:80vh; overflow-y:auto; box-shadow:0 0 20px rgba(0,0,0,0.8);">
-        <h2 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:10px;">🎙️ Ses & Mikrofon</h2>
+    <div id="voice-settings-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; background:rgba(44, 62, 80, 0.95); padding:20px; border-radius:10px; border:2px solid #34495e; min-width:300px;">
+        <h2 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:10px;">🎙️ Audio Settings</h2>
         <div style="margin-bottom:15px;">
-            <label>Master Ses: <span id="vol-display">100%</span></label><br>
+            <label>Master Volume: <span id="vol-display">100%</span></label><br>
             <input type="range" id="master-volume" min="0" max="1" step="0.05" value="1" style="width:100%;">
         </div>
         <div style="margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
-            <label style="cursor:pointer;"><input type="checkbox" id="mute-mic"> Mikrofonu Kapat</label>
-            <label style="cursor:pointer;" title="Konuşmak için 'V' tuşuna basılı tutun"><input type="checkbox" id="ptt-enable"> Bas-Konuş (V Tuşu)</label>
+            <label><input type="checkbox" id="mute-mic"> Mute Microphone</label>
+            <label title="Hold 'V' to talk"><input type="checkbox" id="ptt-enable"> Push-To-Talk (V)</label>
         </div>
-        <h3 style="margin-bottom:5px;">Oyuncular</h3>
-        <p style="font-size:11px; color:#bdc3c7; margin-top:0;">Susturmak için seçin.</p>
-        <div id="voice-player-list" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; max-height:200px; overflow-y:auto;"></div>
-        <button id="close-voice-settings" style="margin-top:20px; width:100%; padding:10px; background:#e74c3c; border:none; color:white; font-weight:bold; border-radius:5px; cursor:pointer;">Kapat</button>
+        <h3 style="margin-bottom:5px;">Mute Players</h3>
+        <div id="voice-player-list" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; max-height:150px; overflow-y:auto;"></div>
+        <button id="close-voice-settings" class="btn-danger" style="margin-top:20px; width:100%;">Close</button>
     </div>
+
+    <!-- Return to lobby from game manually (Optional but good UX) -->
+    <button id="ingame-leave-btn" class="btn-danger" style="position:fixed; top:20px; left:20px; z-index:20;">Leave Game</button>
 
     <canvas id="gameCanvas"></canvas>
   </div>

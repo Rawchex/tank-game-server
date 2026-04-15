@@ -11,7 +11,7 @@ class Game {
         this.FPS = 60;
 
         // Custom map dynamic support
-        this.dynamicMap = { walls: [], bushes: [], destructibles: [] };
+        this.dynamicMap = { walls: [], crates: [], bushes: [], tires: [] };
 
         // Start game loop
         this.loopInterval = setInterval(() => this.update(), 1000 / this.FPS);
