@@ -69,11 +69,27 @@ class RoomManager {
     joinTeam(socket, team, name) {
         const roomId = this.playersToRoom[socket.id];
         if (roomId && this.rooms[roomId]) {
-            this.rooms[roomId].players[socket.id].team = team;
-            this.rooms[roomId].players[socket.id].name = name;
+            // Enforce 5-member limit (Players + Bots)
+            let currentCount = 0;
+            const room = this.rooms[roomId];
+            
+            // Count humans in team
+            Object.values(room.players).forEach(p => { if (p.team === team) currentCount++; });
+            // Count bots in team
+            if (room.game) {
+                Object.values(room.game.players).forEach(p => { if (p.isBot && p.team === team) currentCount++; });
+            }
+
+            if (currentCount >= 5) {
+                socket.emit('team_full', { team });
+                return;
+            }
+
+            room.players[socket.id].team = team;
+            room.players[socket.id].name = name;
             // Add to game
-            if (this.rooms[roomId].game) {
-                this.rooms[roomId].game.addPlayer(socket, this.rooms[roomId].players[socket.id]);
+            if (room.game) {
+                room.game.addPlayer(socket, room.players[socket.id]);
             }
             this.broadcastLobbyState(roomId);
         }
@@ -125,6 +141,16 @@ class RoomManager {
         const roomId = this.playersToRoom[socket.id];
         if (roomId && this.rooms[roomId] && this.rooms[roomId].hostId === socket.id) {
             if (this.rooms[roomId].game) {
+                // Enforce 5-member limit
+                let currentCount = 0;
+                Object.values(this.rooms[roomId].players).forEach(p => { if (p.team === team) currentCount++; });
+                Object.values(this.rooms[roomId].game.players).forEach(p => { if (p.isBot && p.team === team) currentCount++; });
+
+                if (currentCount >= 5) {
+                    socket.emit('team_full', { team });
+                    return;
+                }
+
                 this.rooms[roomId].game.addBot(team);
                 this.broadcastLobbyState(roomId);
             }

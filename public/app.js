@@ -263,6 +263,33 @@ document.getElementById('btn-close-editor').addEventListener('click', () => {
     }
 });
 
+/* --- ADMIN DASHBOARD & TAB LOGIC --- */
+const adminPanel = document.getElementById('ingame-admin');
+const adminPauseBtn = document.getElementById('admin-pause-btn');
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        // Only show if we are in game and are the host
+        if (window.activeRoomId && window.isHost) {
+            adminPanel.style.display = adminPanel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+});
+
+if (adminPauseBtn) {
+    adminPauseBtn.addEventListener('click', () => {
+        socket.emit('adminAction', { action: 'togglePause' });
+    });
+}
+document.getElementById('admin-reset-btn')?.addEventListener('click', () => socket.emit('adminAction', { action: 'reset' }));
+document.getElementById('admin-clear-bots-btn')?.addEventListener('click', () => socket.emit('adminAction', { action: 'clearBots' }));
+
+socket.on('gamePaused', (isPaused) => {
+    if (adminPauseBtn) adminPauseBtn.innerText = isPaused ? '▶ RESUME MATCH' : '⏸ PAUSE MATCH';
+    // Show a small pause indicator in HUD if desired
+});
+
 const gameOverOverlay = document.getElementById('game-over-overlay');
 const winnerText = document.getElementById('winner-team-text');
 const finalRed = document.getElementById('final-score-red');
@@ -297,18 +324,47 @@ function refreshHostLayoutList() {
         hostLayoutList.innerHTML = '<div style="color:#7f8c8d; font-size:12px; text-align:center;">No layouts found.</div>';
         return;
     }
-    window.myAccount.layouts.forEach(l => {
+    window.myAccount.layouts.forEach((l, idx) => {
         const div = document.createElement('div');
         div.className = 'layout-item';
-        div.style = 'padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; cursor:pointer; display:flex; justify-content:space-between;';
-        div.innerHTML = `<span>${l.name}</span> <span style="font-size:10px; color:#bdc3c7;">${new Date(l.createdAt).toLocaleDateString()}</span>`;
+        div.style = 'padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; cursor:pointer; display:flex; gap:12px; align-items:center; margin-bottom:5px;';
+        
+        const thumbId = `thumb-${idx}`;
+        div.innerHTML = `
+            <canvas id="${thumbId}" width="60" height="40" style="background:#000; border-radius:3px; border:1px solid rgba(255,255,255,0.1)"></canvas>
+            <div style="flex-grow:1;">
+                <div style="font-weight:bold; font-size:13px;">${l.name}</div>
+                <div style="font-size:10px; color:#7f8c8d;">${new Date(l.createdAt).toLocaleDateString()}</div>
+            </div>
+        `;
+        
         div.onclick = () => {
             document.querySelectorAll('.layout-item').forEach(i => i.style.background = 'rgba(255,255,255,0.05)');
             div.style.background = 'var(--primary)';
             window.selectedHostLayout = l.data;
         };
         hostLayoutList.appendChild(div);
+        
+        // Render preview
+        setTimeout(() => renderMiniMap(document.getElementById(thumbId), l.data), 0);
     });
+}
+
+function renderMiniMap(canvas, data) {
+    if (!canvas || !data) return;
+    const ctx = canvas.getContext('2d');
+    const scale = canvas.width / 3000;
+    ctx.clearRect(0,0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "#555";
+    (data.walls || []).forEach(w => ctx.fillRect(w.x * scale, w.y * scale, w.width * scale, w.height * scale));
+    (data.crates || []).forEach(c => ctx.fillRect(c.x * scale, c.y * scale, c.width * scale, c.height * scale));
+    
+    ctx.fillStyle = "#e74c3c";
+    (data.spawns || []).filter(s => s.type === 'redSpawn').forEach(s => ctx.fillRect(s.x * scale, s.y * scale, 4, 4));
+    
+    ctx.fillStyle = "#3498db";
+    (data.spawns || []).filter(s => s.type === 'blueSpawn').forEach(s => ctx.fillRect(s.x * scale, s.y * scale, 4, 4));
 }
 
 document.getElementById('create-room-btn').addEventListener('click', () => {
@@ -451,6 +507,63 @@ function startGame() {
     if(typeof initInput === 'function') initInput(socket);
     if(typeof initVoiceChat === 'function') initVoiceChat();
 }
+
+/* --- IN-GAME CHAT LOGIC --- */
+const chatInputWrapper = document.getElementById('chat-input-wrapper');
+const chatInput = document.getElementById('chat-input');
+const chatContainer = document.getElementById('chat-container');
+const chatPrefix = document.getElementById('chat-prefix');
+let currentChatType = 'all';
+
+window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (!chatInputWrapper || !chatInput) return;
+
+    if (e.key.toLowerCase() === 'y') {
+        currentChatType = 'all';
+        if (chatPrefix) { chatPrefix.innerText = '[ALL]'; chatPrefix.style.color = '#f1c40f'; }
+        chatInputWrapper.style.display = 'block';
+        chatInput.focus();
+        e.preventDefault();
+    }
+    if (e.key.toLowerCase() === 't') {
+        currentChatType = 'team';
+        if (chatPrefix) { chatPrefix.innerText = '[TEAM]'; chatPrefix.style.color = '#3498db'; }
+        chatInputWrapper.style.display = 'block';
+        chatInput.focus();
+        e.preventDefault();
+    }
+});
+
+if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const msg = chatInput.value.trim();
+            if (msg) socket.emit('chatMessage', { type: currentChatType, msg: msg });
+            chatInput.value = '';
+            chatInputWrapper.style.display = 'none';
+            chatInput.blur();
+        }
+        if (e.key === 'Escape') {
+            chatInputWrapper.style.display = 'none';
+            chatInput.blur();
+        }
+    });
+}
+
+socket.on('chatMessage', (data) => {
+    if (!chatContainer) return;
+    const msgEl = document.createElement('div');
+    msgEl.className = `chat-msg ${data.type}`;
+    const teamSpan = data.team ? `<span style="color:${data.team === 'Red' ? '#e74c3c' : '#3498db'}; font-weight:bold;">[${data.team}]</span> ` : '';
+    msgEl.innerHTML = `${teamSpan}<strong>${data.from}:</strong> ${data.msg}`;
+    chatContainer.prepend(msgEl);
+    setTimeout(() => { if (msgEl.parentNode) msgEl.remove(); }, 12000);
+});
+
+socket.on('team_full', (data) => {
+    alert(`The ${data.team} team is full! Max 5 members allowed.`);
+});
 
 socket.on('gameState', (state) => {
     window.latestGameState = state;

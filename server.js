@@ -99,6 +99,28 @@ io.on('connection', (socket) => {
         roomManager.addBot(socket, team);
     });
 
+    socket.on('adminAction', (data) => {
+        const roomId = roomManager.getRoomId(socket);
+        const room = roomManager.rooms[roomId];
+        if (room && room.hostId === socket.id && room.game) {
+            if (data.action === 'togglePause') {
+                room.game.paused = !room.game.paused;
+                io.to(roomId).emit('gamePaused', room.game.paused);
+            } else if (data.action === 'clearBots') {
+                for (let pid in room.game.players) {
+                    if (room.game.players[pid].isBot) room.game.removePlayer(pid);
+                }
+                roomManager.broadcastLobbyState(roomId);
+            } else if (data.action === 'reset') {
+                room.game.timeRemaining = 180; // or setting
+                room.game.teamScores = { Red: 0, Blue: 0 };
+                room.game.bullets = [];
+                room.game.paused = false;
+                io.to(roomId).emit('gamePaused', false);
+            }
+        }
+    });
+
     socket.on('removeBot', (team) => {
         roomManager.removeBot(socket, team);
     });
@@ -110,6 +132,31 @@ io.on('connection', (socket) => {
             game.dynamicMap = dynamicMap;
             // Trigger an immediate sync for clients
             io.to(roomId).emit('sandboxSync', dynamicMap);
+        }
+    });
+
+    socket.on('chatMessage', (data) => {
+        const roomId = roomManager.getRoomId(socket);
+        if (!roomId || !roomManager.rooms[roomId]) return;
+        
+        const player = roomManager.rooms[roomId].players[socket.id];
+        if (!player) return;
+
+        if (data.type === 'team') {
+            if (!player.team) return;
+            io.to(roomId).emit('chatMessage', {
+                from: player.name,
+                team: player.team,
+                msg: data.msg,
+                type: 'team'
+            });
+        } else {
+            io.to(roomId).emit('chatMessage', {
+                from: player.name,
+                team: player.team,
+                msg: data.msg,
+                type: 'all'
+            });
         }
     });
 

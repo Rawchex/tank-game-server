@@ -11,6 +11,12 @@ window.voiceSettings = {
     mutedPlayers: {}    // socket.id -> true (Sesi kapatılan oyuncular)
 };
 
+// Speaking Detection Setup
+window.speakingUsers = {}; 
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const analysers = {}; 
+
+
 // Mikrofon durumunu günceller (Susturma ve Bas-Konuş için)
 window.updateLocalMicState = function() {
     if (!localStream) return;
@@ -139,6 +145,13 @@ function createPeerConnection(userId, isInitiator) {
             audioElements[userId] = audio;
         }
         audioElements[userId].srcObject = event.streams[0];
+        
+        // Setup analyser for speaking highlight
+        const source = audioCtx.createMediaStreamSource(event.streams[0]);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analysers[userId] = analyser;
     };
     
     // Offer oluşturan taraf isek
@@ -200,11 +213,34 @@ function updateVoiceProximity(state, myId) {
             if (audioElements[id].volume !== vol) {
                 audioElements[id].volume = vol;
             }
-        } else {
-            // Eğer oyuncu haritada yoksa sesini sıfırla
-            if (audioElements[id].volume !== 0) {
-                audioElements[id].volume = 0;
+            
+            // Speaking detection
+            if (analysers[id]) {
+                const dataArray = new Uint8Array(analysers[id].frequencyBinCount);
+                analysers[id].getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                window.speakingUsers[id] = (sum / dataArray.length) > 15;
             }
+        } else {
+            if (audioElements[id].volume !== 0) audioElements[id].volume = 0;
+            window.speakingUsers[id] = false;
         }
+    }
+
+    // Check local mic
+    if (localStream) {
+        if (!analysers['local']) {
+            const source = audioCtx.createMediaStreamSource(localStream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analysers['local'] = analyser;
+        }
+        const dataArray = new Uint8Array(analysers['local'].frequencyBinCount);
+        analysers['local'].getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let j = 0; j < dataArray.length; j++) sum += dataArray[j];
+        window.speakingUsers[myId] = (sum / dataArray.length) > 15 && (!window.voiceSettings.pttEnabled || window.voiceSettings.pttActive);
     }
 }

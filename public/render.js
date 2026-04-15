@@ -276,11 +276,27 @@ function renderGame(state, myId) {
         ctx.fillStyle = p.team === 'Red' ? '#e74c3c' : '#3498db';
         ctx.fillRect(p.x - p.width / 2, p.y - p.height / 2, p.width, p.height);
 
-        // İsim etiketi
-        ctx.fillStyle = '#ecf0f1';
-        ctx.font = '12px Arial';
+        // İsim etiketi (Konuşanın ismi yeşil yanar)
+        let nameColor = '#ecf0f1';
+        if (window.speakingUsers && window.speakingUsers[id]) {
+            nameColor = '#2ecc71'; // Canlı yeşil
+        }
+        ctx.fillStyle = nameColor;
+        ctx.font = nameColor === '#2ecc71' ? 'bold 14px Inter' : '12px Inter';
         ctx.textAlign = 'center';
         ctx.fillText(p.name, p.x, p.y - p.height / 2 - 20);
+
+        // Spawn Shield (Neon Kalkan)
+        if (p.shieldTime > 0) {
+            ctx.save();
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.width * 0.9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         // Can Barı
         const hpBarY = p.y - p.height / 2 - 12;

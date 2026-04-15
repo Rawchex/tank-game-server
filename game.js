@@ -25,6 +25,7 @@ class Game {
 
         this.teamScores = { Red: 0, Blue: 0 };
         this.frameCounter = 0; // To track seconds
+        this.paused = false;
         this.botDiff = (roomData && roomData.settings && roomData.settings.botDiff) || 'medium';
 
         // Start game loop
@@ -70,6 +71,7 @@ class Game {
             speedBoostTimer: 0,
             hasRapidFire: false,
             rapidFireTimer: 0,
+            shieldTime: 180, // 3 seconds at 60fps
             input: { w: false, a: false, s: false, d: false },
             killedBy: null
         };
@@ -271,10 +273,13 @@ class Game {
         while (diff > Math.PI) diff -= Math.PI * 2;
         p.angle += diff * 0.12; // Turn responsiveness
 
-        // Applied Movement
+        // Applied Movement with boundary clamping
         p.input.w = true; // Always moving forward relative to p.angle
-        p.x += Math.cos(p.angle) * p.speed * 0.75;
-        p.y += Math.sin(p.angle) * p.speed * 0.75;
+        const nextAIX = p.x + Math.cos(p.angle) * p.speed * 0.75;
+        const nextAIY = p.y + Math.sin(p.angle) * p.speed * 0.75;
+
+        p.x = Math.max(p.width / 2, Math.min(nextAIX, map.width - p.width / 2));
+        p.y = Math.max(p.height / 2, Math.min(nextAIY, map.height - p.height / 2));
 
         // 6. Combat Logic (Interception Aiming)
         p.cooldown = p.cooldown || 0;
@@ -327,6 +332,10 @@ class Game {
     }
 
     update() {
+        if (this.paused) {
+            this.io.to(this.roomId).emit('gamePaused', true);
+            return;
+        }
         if (this.isGameOver) return;
         
         this.frameCounter++;
@@ -416,6 +425,10 @@ class Game {
                     p.isSpeedBoosted = true;
                 }
             }
+            // Update Timers
+            if (p.shieldTime > 0) p.shieldTime--;
+            if (p.speedBoostTimer > 0) p.speedBoostTimer--;
+            else p.isSpeedBoosted = false;
         }
 
         // Bullet updates
@@ -528,6 +541,7 @@ class Game {
                 const p = this.players[id];
                 p.isDead = false;
                 p.health = 100;
+                p.shieldTime = 180; // 3 seconds shield on respawn
                 const spawnPos = this.getSpawnPos(p.team);
                 p.x = spawnPos.x;
                 p.y = spawnPos.y;
