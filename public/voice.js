@@ -2,6 +2,42 @@ let localStream = null;
 const peers = {}; // socket.id -> RTCPeerConnection
 const audioElements = {}; // socket.id -> HTMLAudioElement
 
+// Ses Ayarları Objeleri
+window.voiceSettings = {
+    globalVolume: 1.0,  // %0 ile %100 arası master ses seviyesi
+    pttEnabled: false,  // Bas-Konuş modu aktif mi? (Push-To-Talk)
+    pttActive: false,   // PTT butonuna basılıyor mu?
+    micMuted: false,    // Mikrofon tamamen kapalı mı?
+    mutedPlayers: {}    // socket.id -> true (Sesi kapatılan oyuncular)
+};
+
+// Mikrofon durumunu günceller (Susturma ve Bas-Konuş için)
+window.updateLocalMicState = function() {
+    if (!localStream) return;
+    const track = localStream.getAudioTracks()[0];
+    if (window.voiceSettings.micMuted) {
+        track.enabled = false; // Tamamen susturulmuş
+    } else if (window.voiceSettings.pttEnabled) {
+        track.enabled = window.voiceSettings.pttActive; // Sadece basılıyorsa aktif
+    } else {
+        track.enabled = true; // Açık mikrofon
+    }
+};
+
+// V tuşuna basılı tutulduğunda konuş (Bas-Konuş)
+document.addEventListener('keydown', (e) => {
+    if ((e.code === 'KeyV' || e.key === 'v' || e.key === 'V') && !e.repeat) {
+        window.voiceSettings.pttActive = true;
+        window.updateLocalMicState();
+    }
+});
+document.addEventListener('keyup', (e) => {
+    if (e.code === 'KeyV' || e.key === 'v' || e.key === 'V') {
+        window.voiceSettings.pttActive = false;
+        window.updateLocalMicState();
+    }
+});
+
 // RTCPeerConnection konfigürasyonu (STUN server)
 const peerConnectionConfig = {
     iceServers: [
@@ -12,9 +48,20 @@ const peerConnectionConfig = {
 
 async function initVoiceChat() {
     try {
-        // Kullanıcıdan mikrofon izni iste
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        console.log("Mikrofon izni alındı.");
+        // Kullanıcıdan optimize edilmiş mikrofon izni iste (gürültü engelleme, yankı önleme, düşük örnekleme)
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                sampleRate: 24000 // Tarayıcı performansını ve network yükünü azaltır
+            }, 
+            video: false 
+        });
+        console.log("Mikrofon izni alındı ve optimize edildi.");
+        
+        // Başlangıç durumu mikrofon ayarlarını uygula
+        window.updateLocalMicState();
         
         // Sunucuya sesli sohbete katıldığımızı bildir
         socket.emit('voice-join');
@@ -132,12 +179,23 @@ function updateVoiceProximity(state, myId) {
             if (vol < 0) vol = 0;
             if (vol > 1) vol = 1;
 
-            if (state.players[id].isDead) vol = 0; // Ölü oyuncuyu duyamayız
+            // Global ses ayarını (Master Volume) uygula
+            vol *= window.voiceSettings.globalVolume;
+
+            // Oyuncu ölü mü, veya bilerek susturuldu mu kontrol et
+            if (state.players[id].isDead || window.voiceSettings.mutedPlayers[id]) {
+                vol = 0; 
+            }
             
-            audioElements[id].volume = vol;
+            // Performans optimizasyonu: Eğer ses zaten 0 ve hala 0 hesaplanmışsa ses elemanını hiç yorma
+            if (audioElements[id].volume !== vol) {
+                audioElements[id].volume = vol;
+            }
         } else {
             // Eğer oyuncu haritada yoksa sesini sıfırla
-            audioElements[id].volume = 0;
+            if (audioElements[id].volume !== 0) {
+                audioElements[id].volume = 0;
+            }
         }
     }
 }

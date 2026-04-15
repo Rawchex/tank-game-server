@@ -166,6 +166,40 @@
       </div>
     </div>
 
+    <!-- Ses Ayarları Butonu -->
+    <button id="voice-settings-btn" style="position:fixed; bottom:20px; right:20px; z-index:10; background:rgba(0,0,0,0.7); color:white; border:2px solid #7f8c8d; padding:10px; border-radius:8px; cursor:pointer;">
+      🎤 Ses Ayarları
+    </button>
+
+    <!-- Ses Ayarları Modalı -->
+    <div id="voice-settings-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; background:rgba(44, 62, 80, 0.95); padding:20px; border-radius:10px; border:2px solid #34495e; min-width:300px; max-height:80vh; overflow-y:auto; box-shadow:0 0 20px rgba(0,0,0,0.8);">
+        <h2 style="margin-top:0; border-bottom:1px solid #7f8c8d; padding-bottom:10px;">🎙️ Ses & Mikrofon</h2>
+        
+        <div style="margin-bottom:15px;">
+            <label>Master Ses: <span id="vol-display">100%</span></label><br>
+            <input type="range" id="master-volume" min="0" max="1" step="0.05" value="1" style="width:100%;">
+        </div>
+
+        <div style="margin-bottom:15px; display:flex; gap:15px;">
+            <label style="cursor:pointer;">
+                <input type="checkbox" id="mute-mic"> Mikrofonu Kapat
+            </label>
+            <label style="cursor:pointer;" title="Konuşmak için 'V' tuşuna basılı tutun">
+                <input type="checkbox" id="ptt-enable"> Bas-Konuş (V Tuşu)
+            </label>
+        </div>
+
+        <h3 style="margin-bottom:5px;">Oyuncular</h3>
+        <p style="font-size:11px; color:#bdc3c7; margin-top:0;">Tek tek susturmak için oyuncuları seçin.</p>
+        <div id="voice-player-list" style="background:rgba(0,0,0,0.3); padding:10px; border-radius:5px; max-height:200px; overflow-y:auto;">
+            <!-- Dinamik olarak doldurulacak -->
+        </div>
+
+        <button id="close-voice-settings" style="margin-top:20px; width:100%; padding:10px; background:#e74c3c; border:none; color:white; font-weight:bold; border-radius:5px; cursor:pointer;">
+            Kapat
+        </button>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
   </div>
 
