@@ -83,6 +83,22 @@
         </div>
     </div>
 
+    <!-- 4. SERVER BROWSER -->
+    <div id="browser-screen" class="screen full-screen-modal" style="display:none;">
+        <div class="glass-panel wide-panel" style="height: 80vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 20px; margin-bottom: 20px;">
+                <h2 style="margin: 0;">🌐 BATTLE SERVERS</h2>
+                <div style="display: flex; gap: 15px;">
+                    <button id="refresh-rooms-btn" class="btn-secondary">Refresh</button>
+                    <button onclick="showScreen('main-menu-screen')" class="btn-secondary">Return</button>
+                </div>
+            </div>
+            <ul id="rooms-list" class="styled-list" style="flex: 1; overflow-y: auto;">
+                <li style="justify-content: center; color: var(--text-dim);">Scanning for active signals...</li>
+            </ul>
+        </div>
+    </div>
+
     <!-- 4. LOBBY INTERFACE -->
     <div id="lobby-screen" class="screen full-screen-modal" style="display: none;">
         <div class="glass-panel wide-panel" style="display: flex; flex-direction: column; height: 80vh;">
@@ -182,6 +198,56 @@
                 </div>
             </div>
             <button id="return-to-lobby-btn" class="btn-primary" style="width: 100%;">Next Operation</button>
+        </div>
+    </div>
+
+    <!-- Match Creation Modal -->
+    <div id="create-room-modal" class="full-screen-modal" style="display: none;">
+        <div class="glass-panel wide-panel" style="width: 600px;">
+            <h2>INITIALIZE MATCH</h2>
+            <div style="margin: 25px 0;">
+                <label class="subtext">Tactical Name</label>
+                <input type="text" id="new-room-name" class="styled-input" placeholder="e.g. Operation Overlord">
+                
+                <label class="subtext">Match Rules</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <input type="number" id="match-kill-limit" class="styled-input" value="15" title="Kill Limit">
+                    <input type="number" id="match-time-limit" class="styled-input" value="5" title="Time Limit">
+                </div>
+                
+                <input type="hidden" id="new-room-mode" value="classic">
+                <input type="hidden" id="match-bot-count" value="3">
+                <input type="hidden" id="match-bot-diff" value="medium">
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <button id="cancel-create-room" class="btn-secondary" style="flex: 1;">Cancel</button>
+                <button id="confirm-create-room" class="btn-primary" style="flex: 1;">Deploy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Creation Modal -->
+    <div id="create-room-modal" class="full-screen-modal" style="display: none;">
+        <div class="glass-panel wide-panel" style="width: 600px;">
+            <h2>INITIALIZE MATCH</h2>
+            <div style="margin: 25px 0;">
+                <label class="subtext">Tactical Name</label>
+                <input type="text" id="new-room-name" class="styled-input" placeholder="e.g. Operation Overlord">
+                
+                <label class="subtext">Match Rules</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <input type="number" id="match-kill-limit" class="styled-input" value="15" title="Kill Limit">
+                    <input type="number" id="match-time-limit" class="styled-input" value="5" title="Time Limit">
+                </div>
+                
+                <input type="hidden" id="new-room-mode" value="classic">
+                <input type="hidden" id="match-bot-count" value="3">
+                <input type="hidden" id="match-bot-diff" value="medium">
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <button id="cancel-create-room" class="btn-secondary" style="flex: 1;">Cancel</button>
+                <button id="confirm-create-room" class="btn-primary" style="flex: 1;">Deploy</button>
+            </div>
         </div>
     </div>
 

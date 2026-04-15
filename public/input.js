@@ -1,5 +1,5 @@
-const Config = window.EngineConfig;
-const Physics = window.EnginePhysics;
+var Config = window.EngineConfig;
+var Physics = window.EnginePhysics;
 
 window.inputKeys = { w: false, a: false, s: false, d: false, fire: false, skill: null };
 

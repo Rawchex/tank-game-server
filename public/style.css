@@ -280,3 +280,25 @@ button {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* List Component */
+.styled-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.styled-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  margin-bottom: 10px;
+  transition: var(--transition);
+}
+.styled-list li:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--primary);
+}

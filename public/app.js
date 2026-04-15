@@ -7,10 +7,6 @@ function showScreen(screenId) {
     const el = document.getElementById(screenId);
     if (!el) return;
     el.style.display = 'block';
-    
-    // Accessibility check: focus on main input if any
-    const mainInput = el.querySelector('input');
-    if (mainInput) mainInput.focus();
 }
 
 /* --- AUTHENTICATION & SESSION --- */
@@ -23,16 +19,16 @@ const authError = document.getElementById('auth-error');
 let isRegistering = false;
 let currentCaptchaExpected = 0;
 
-document.getElementById('tab-login').addEventListener('click', () => {
+document.getElementById('tab-login')?.addEventListener('click', () => {
     isRegistering = false;
-    registerFields.style.display = 'none';
-    authSubmitBtn.innerText = 'Initialize Session';
+    if (registerFields) registerFields.style.display = 'none';
+    if (authSubmitBtn) authSubmitBtn.innerText = 'Initialize Session';
 });
 
-document.getElementById('tab-register').addEventListener('click', () => {
+document.getElementById('tab-register')?.addEventListener('click', () => {
     isRegistering = true;
-    registerFields.style.display = 'block';
-    authSubmitBtn.innerText = 'Join The Fleet';
+    if (registerFields) registerFields.style.display = 'block';
+    if (authSubmitBtn) authSubmitBtn.innerText = 'Join The Fleet';
     generateCaptcha();
 });
 
@@ -40,17 +36,18 @@ function generateCaptcha() {
     const a = Math.floor(Math.random() * 10) + 1;
     const b = Math.floor(Math.random() * 10) + 1;
     currentCaptchaExpected = a + b;
-    document.getElementById('captcha-question').innerText = `${a} + ${b} = ?`;
+    const q = document.getElementById('captcha-question');
+    if (q) q.innerText = `${a} + ${b} = ?`;
 }
 
-authSubmitBtn.addEventListener('click', () => {
+authSubmitBtn?.addEventListener('click', () => {
     const username = authUsername.value.trim();
     const password = authPassword.value;
-    if (!username || !password) { authError.innerText = "Credentials Required"; return; }
+    if (!username || !password) { if(authError) authError.innerText = "Credentials Required"; return; }
     
     const payload = { type: isRegistering ? 'register' : 'login', username, password };
     if (isRegistering) {
-        payload.captchaAns = parseInt(document.getElementById('auth-captcha').value);
+        payload.captchaAns = parseInt(document.getElementById('auth-captcha')?.value || 0);
         payload.expectedCaptcha = currentCaptchaExpected;
     }
     socket.emit('auth', payload);
@@ -63,42 +60,98 @@ socket.on('authResponse', (res) => {
         updateAccountUI();
         showScreen('main-menu-screen');
     } else {
-        authError.innerText = res.msg;
+        if(authError) authError.innerText = res.msg;
         if (isRegistering) generateCaptcha();
     }
 });
 
 function updateAccountUI() {
     if (!window.myAccount) return;
-    document.getElementById('nav-username').innerText = window.myAccount.name.toUpperCase();
+    const userDisplay = document.getElementById('nav-username');
+    if (userDisplay) userDisplay.innerText = window.myAccount.name.toUpperCase();
     const xpNeeded = window.myAccount.level * 100;
     const xpPerc = Math.min(100, (window.myAccount.xp / xpNeeded) * 100);
-    document.getElementById('nav-xp-bar').style.width = xpPerc + '%';
+    const xpBar = document.getElementById('nav-xp-bar');
+    if (xpBar) xpBar.style.width = xpPerc + '%';
 }
 
 /* --- HUB NAVIGATION --- */
-document.getElementById('btn-host-game').addEventListener('click', () => showScreen('mode-selection-screen'));
-document.getElementById('btn-play-online').addEventListener('click', () => {
+document.getElementById('btn-host-game')?.addEventListener('click', () => showScreen('mode-selection-screen'));
+document.getElementById('btn-play-online')?.addEventListener('click', () => {
     window.navigationContext = 'classic';
-    showScreen('browser-screen'); // Wait, browser-screen might be missing in new HTML? Let's check.
+    showScreen('browser-screen');
     socket.emit('getRooms');
 });
 
 // Mode Selection
-document.getElementById('mode-classic').addEventListener('click', () => {
+document.getElementById('mode-classic')?.addEventListener('click', () => {
     window.navigationContext = 'classic';
-    document.getElementById('create-room-modal').style.display = 'flex';
+    const modal = document.getElementById('create-room-modal');
+    if (modal) modal.style.display = 'flex';
 });
 
-document.getElementById('mode-sandbox').addEventListener('click', () => {
+document.getElementById('mode-sandbox')?.addEventListener('click', () => {
     window.navigationContext = 'sandbox';
+    if (!window.myAccount) return;
     const rname = `${window.myAccount.name.toUpperCase()}'S FORGE`;
     socket.emit('createRoom', { roomName: rname, settings: { mode: 'sandbox' }, playerName: window.myAccount.name });
 });
 
-document.getElementById('btn-logout').addEventListener('click', () => {
+document.getElementById('btn-logout')?.addEventListener('click', () => {
     window.myAccount = null;
     showScreen('auth-screen');
+});
+
+/* --- ROOM BROWSER --- */
+const roomsList = document.getElementById('rooms-list');
+document.getElementById('refresh-rooms-btn')?.addEventListener('click', () => socket.emit('getRooms'));
+
+socket.on('roomsList', (rooms) => {
+    if (!roomsList) return;
+    roomsList.innerHTML = '';
+    const filtered = rooms.filter(r => r.mode === (window.navigationContext || 'classic'));
+    
+    if (filtered.length === 0) {
+        roomsList.innerHTML = `<li style="justify-content:center; color:var(--text-dim);">No active battle signals detected.</li>`;
+        return;
+    }
+
+    filtered.forEach(r => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div><strong>${r.name}</strong> <span class="subtext" style="margin-left:15px;">(${r.playerCount}/10)</span></div>
+            <button class="btn-primary join-room-btn" data-id="${r.id}">Deploy</button>
+        `;
+        roomsList.appendChild(li);
+    });
+
+    document.querySelectorAll('.join-room-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const rid = e.target.getAttribute('data-id');
+            socket.emit('joinRoom', { roomId: rid, playerName: window.myAccount.name });
+        });
+    });
+});
+
+/* --- ROOM CREATION --- */
+document.getElementById('cancel-create-room')?.addEventListener('click', () => {
+    const modal = document.getElementById('create-room-modal');
+    if (modal) modal.style.display = 'none';
+});
+
+document.getElementById('confirm-create-room')?.addEventListener('click', () => {
+    if (!window.myAccount) return;
+    const rname = document.getElementById('new-room-name').value.trim() || 'Tactical Operation';
+    const settings = {
+        mode: document.getElementById('new-room-mode').value,
+        killLimit: parseInt(document.getElementById('match-kill-limit').value),
+        timeLimit: parseInt(document.getElementById('match-time-limit').value),
+        botCount: parseInt(document.getElementById('match-bot-count').value),
+        botDiff: document.getElementById('match-bot-diff').value
+    };
+    socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
+    const modal = document.getElementById('create-room-modal');
+    if(modal) modal.style.display = 'none';
 });
 
 /* --- LOBBY & TEAM SELECTION --- */
@@ -106,7 +159,8 @@ socket.on('roomJoined', (roomId) => {
     window.activeRoomId = roomId;
     if (window.navigationContext === 'sandbox') {
         window.isEditingMap = true;
-        document.getElementById('map-editor-toolbar').style.display = 'block';
+        const toolbar = document.getElementById('map-editor-toolbar');
+        if (toolbar) toolbar.style.display = 'block';
         showScreen('game-screen');
         startGame();
     } else {
@@ -122,7 +176,8 @@ socket.on('lobbyState', (players) => {
     redP.innerHTML = ''; blueP.innerHTML = '';
     window.isHost = players[socket.id]?.isHost;
     
-    document.getElementById('admin-controls').style.display = window.isHost ? 'block' : 'none';
+    const adminPanel = document.getElementById('admin-controls');
+    if(adminPanel) adminPanel.style.display = window.isHost ? 'block' : 'none';
 
     for (let id in players) {
         let p = players[id];
@@ -136,16 +191,16 @@ socket.on('lobbyState', (players) => {
     }
 });
 
-document.getElementById('join-red').addEventListener('click', () => { 
+document.getElementById('join-red')?.addEventListener('click', () => { 
     socket.emit('joinTeam', { team: 'Red', name: window.myAccount.name }); 
     startGame(); 
 });
-document.getElementById('join-blue').addEventListener('click', () => { 
+document.getElementById('join-blue')?.addEventListener('click', () => { 
     socket.emit('joinTeam', { team: 'Blue', name: window.myAccount.name }); 
     startGame(); 
 });
 
-document.getElementById('leave-room-btn').addEventListener('click', () => {
+document.getElementById('leave-room-btn')?.addEventListener('click', () => {
     socket.emit('leaveRoom');
     showScreen('main-menu-screen');
 });
@@ -162,7 +217,7 @@ function startGame() {
 
 function setupSandboxPlacement() {
     const canvas = document.getElementById('gameCanvas');
-    canvas.addEventListener('mousedown', (e) => {
+    canvas?.addEventListener('mousedown', (e) => {
         if (!window.isEditingMap || !window.isHost) return;
         engine.placeObject(window.currentEditorTool, e.clientX, e.clientY);
     });
@@ -170,10 +225,11 @@ function setupSandboxPlacement() {
 
 /* --- HUD & SCOREBOARD --- */
 socket.on('gameState', (state) => {
-    document.getElementById('score-red').innerText = state.teamScores.Red;
-    document.getElementById('score-blue').innerText = state.teamScores.Blue;
+    const redScore = document.getElementById('score-red');
+    if(redScore) redScore.innerText = state.teamScores.Red;
+    const blueScore = document.getElementById('score-blue');
+    if(blueScore) blueScore.innerText = state.teamScores.Blue;
     
-    // Leaderboard
     const lb = document.getElementById('leaderboard-list');
     if (lb) {
         lb.innerHTML = Object.values(state.players)
@@ -191,23 +247,25 @@ window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 't') {
         const wrapper = document.getElementById('chat-input-wrapper');
-        wrapper.style.display = 'block';
-        chatInput.focus();
+        if (wrapper) wrapper.style.display = 'block';
+        if (chatInput) chatInput.focus();
         e.preventDefault();
     }
 });
 
-chatInput.addEventListener('keydown', (e) => {
+chatInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         const msg = chatInput.value.trim();
         if (msg) socket.emit('chatMessage', { type: 'all', msg });
         chatInput.value = '';
-        document.getElementById('chat-input-wrapper').style.display = 'none';
+        const wrapper = document.getElementById('chat-input-wrapper');
+        if (wrapper) wrapper.style.display = 'none';
         chatInput.blur();
     }
 });
 
 socket.on('chatMessage', (data) => {
+    if (!chatContainer) return;
     const div = document.createElement('div');
     div.className = 'chat-msg';
     div.innerHTML = `<strong>${data.from}:</strong> ${data.msg}`;
@@ -225,18 +283,20 @@ document.querySelectorAll('.tool-card').forEach(card => {
     });
 });
 
-document.getElementById('btn-close-editor').addEventListener('click', () => {
+document.getElementById('btn-close-editor')?.addEventListener('click', () => {
     window.isEditingMap = false;
-    document.getElementById('map-editor-toolbar').style.display = 'none';
+    const toolbar = document.getElementById('map-editor-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
     showScreen('lobby-screen');
 });
 
-document.getElementById('btn-test-map').addEventListener('click', () => {
+document.getElementById('btn-test-map')?.addEventListener('click', () => {
     window.isEditingMap = false;
-    document.getElementById('map-editor-toolbar').style.display = 'none';
+    const toolbar = document.getElementById('map-editor-toolbar');
+    if (toolbar) toolbar.style.display = 'none';
     socket.emit('joinTeam', { team: 'Red', name: window.myAccount.name });
     startGame();
 });
 
-// Initialization
+// Initial Signal
 showScreen('auth-screen');

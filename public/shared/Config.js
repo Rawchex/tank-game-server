@@ -2,7 +2,7 @@
  * Tank Engine 2.0 - Universal Configuration
  * Single source of truth for both Server and Client.
  */
-const Config = {
+var Config = {
     // Map Metrics
     MAP_WIDTH: 3000,
     MAP_HEIGHT: 2000,

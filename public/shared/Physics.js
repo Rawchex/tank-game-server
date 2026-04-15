@@ -2,7 +2,7 @@
  * Tank Engine 2.0 - Universal Physics Engine
  * Handles collisions, bounds, and raycasting.
  */
-const Physics = {
+var Physics = {
     /**
      * Standard AABB (Box-Box) collision
      */
