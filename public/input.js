@@ -8,6 +8,7 @@ function initInput(socket) {
     socketRef = socket;
 
     window.addEventListener('keydown', (e) => {
+        if (!e.key) return;
         let k = e.key.toLowerCase();
         if (window.inputKeys.hasOwnProperty(k)) {
             window.inputKeys[k] = true;
@@ -38,6 +39,7 @@ function initInput(socket) {
     });
 
     window.addEventListener('keyup', (e) => {
+        if (!e.key) return;
         let k = e.key.toLowerCase();
         if (window.inputKeys.hasOwnProperty(k)) {
             window.inputKeys[k] = false;
