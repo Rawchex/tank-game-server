@@ -566,22 +566,32 @@ socket.on('team_full', (data) => {
 });
 
 socket.on('gameState', (state) => {
-    window.latestGameState = state;
+    window.gameState = state; // Central state for the entire engine
     window.latestGameSettings = state.settings || { mode: 'classic' };
     
     // Update lobby info display
-    document.getElementById('lobby-room-name').innerText = state.name || 'Room';
-    document.getElementById('lobby-room-mode').innerText = `Mode: ${window.latestGameSettings.mode.toUpperCase()}`;
+    const lName = document.getElementById('lobby-room-name');
+    if (lName) lName.innerText = state.name || 'Room';
+    
+    const lMode = document.getElementById('lobby-room-mode');
+    if (lMode) lMode.innerText = `Mode: ${window.latestGameSettings.mode.toUpperCase()}`;
 
     // Adjust visibility of panels dynamically if we are host and in lobby
     if (isRoomAdmin && roomLobbyContainerVisible()) {
-       sandboxHostPanel.style.display = window.latestGameSettings.mode === 'sandbox' ? 'block' : 'none';
-    }
-
-    if ((myTeam || window.isEditingMap) && typeof renderGame === 'function') {
-        renderGame(state, socket.id);
+       if (sandboxHostPanel) sandboxHostPanel.style.display = window.latestGameSettings.mode === 'sandbox' ? 'block' : 'none';
     }
 });
+
+// --- ENGINE LOOP (High Performance Rendering & Interpolation) ---
+function engineLoop() {
+    if ((myTeam || window.isEditingMap) && typeof renderGame === 'function') {
+        if (window.gameState) {
+            renderGame(window.gameState, socket.id);
+        }
+    }
+    requestAnimationFrame(engineLoop);
+}
+requestAnimationFrame(engineLoop);
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
@@ -713,10 +723,11 @@ document.getElementById('ptt-enable').addEventListener('change', (e) => {
 
 function populateVoicePlayers() {
     const voicePlayerList = document.getElementById('voice-player-list');
+    if (!voicePlayerList) return;
     voicePlayerList.innerHTML = '';
-    if (!window.latestGameState || !window.latestGameState.players) return;
+    if (!window.gameState || !window.gameState.players) return;
     
-    const players = window.latestGameState.players;
+    const players = window.gameState.players;
     let count = 0;
     
     for (const id in players) {

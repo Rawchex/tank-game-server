@@ -11,6 +11,8 @@ window.cameraOffset = { x: 0, y: 0 };
 // Redundant walls removed. Layout is now dynamically provided by server.
 
 let particles = [];
+let renderPlayers = {}; // id -> {x, y, angle} for LERP
+const LERP_FACTOR = 0.25; // Smoothness factor (0.1 to 0.4)
 
 window.addEventListener('resize', resizeCanvas);
 function resizeCanvas() {
@@ -175,7 +177,7 @@ function renderGame(state, myId) {
 
     // Mermileri Çiz (Ateş edildiği andaki açıyla ilerliyor)
     ctx.fillStyle = '#f1c40f'; // Sarı
-    for (let b of state.bullets) {
+    for (let b of (s.bullets || [])) {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -183,8 +185,8 @@ function renderGame(state, myId) {
     }
 
     // Yeni patlamaları partikül listesine ekle
-    if (state.explosions) {
-        for (let ex of state.explosions) {
+    if (s.explosions) {
+        for (let ex of s.explosions) {
             // Bir patlama için 10-15 küçük parça oluştur
             const count = Math.floor(Math.random() * 5) + 10;
             for (let i = 0; i < count; i++) {
@@ -228,102 +230,130 @@ function renderGame(state, myId) {
     let allPlayers = [];
 
     // --- HUD: MATCH INTEL ---
-    if (gameState.matchTime !== undefined) {
+    const s = state || window.gameState; // THE FIX: Single Source of Truth
+    if (!s) return;
+
+    if (s.matchTime !== undefined) {
         ctx.save();
         ctx.fillStyle = "white";
         ctx.font = "bold 24px 'Inter', sans-serif";
         ctx.textAlign = "center";
-        const mins = Math.floor(gameState.matchTime / 60);
-        const secs = gameState.matchTime % 60;
+        const mins = Math.floor(s.matchTime / 60);
+        const secs = s.matchTime % 60;
         ctx.fillText(`${mins}:${secs < 10 ? '0' : ''}${secs}`, canvas.width / 2, 40);
         ctx.restore();
     }
 
-    if (gameState.teamScores) {
+    if (s.teamScores) {
         ctx.save();
         ctx.font = "bold 20px 'Inter', sans-serif";
         
         // Red Score (Left)
         ctx.fillStyle = "#e74c3c";
         ctx.textAlign = "left";
-        ctx.fillText(`RED: ${gameState.teamScores.Red}`, 20, 40);
+        ctx.fillText(`RED: ${s.teamScores.Red}`, 20, 40);
         
         // Blue Score (Right)
         ctx.fillStyle = "#3498db";
         ctx.textAlign = "right";
-        ctx.fillText(`BLUE: ${gameState.teamScores.Blue}`, canvas.width - 20, 40);
+        ctx.fillText(`BLUE: ${s.teamScores.Blue}`, canvas.width - 20, 40);
         ctx.restore();
     }
 
     // --- OTHER HUD (Scores, Skills) ---
-    renderScores(gameState.players);
+    renderScores(s.players);
 
-    // Oyuncuları Çiz
-    for (let id in state.players) {
-        let p = state.players[id];
+    // Oyuncuları Çiz (Interpolated Movement)
+    for (let id in s.players) {
+        let p = s.players[id];
         allPlayers.push({ id, name: p.name, score: p.score, team: p.team });
 
         if (p.team === 'Red') redScore += p.score;
         if (p.team === 'Blue') blueScore += p.score;
 
-        if (id === myId) {
-            window.myLatestPos = { x: p.x, y: p.y }; // Kendi pozisyonumu angle için kaydet
+        // --- LERP MANTIĞI: Yumuşak Hareket ---
+        if (!renderPlayers[id]) {
+            renderPlayers[id] = { x: p.x, y: p.y, angle: p.angle || 0 };
+        } else {
+            // Sunucudaki hedef pozisyona adım adım yaklaş (LERP)
+            renderPlayers[id].x += (p.x - renderPlayers[id].x) * LERP_FACTOR;
+            renderPlayers[id].y += (p.y - renderPlayers[id].y) * LERP_FACTOR;
+            
+            // Açı interpolasyonu (Wrap-around handling)
+            let targetAngle = p.angle || 0;
+            let currentAngle = renderPlayers[id].angle;
+            let diff = targetAngle - currentAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            renderPlayers[id].angle += diff * LERP_FACTOR;
         }
 
-        if (p.isDead) continue;
+        const rx = renderPlayers[id].x;
+        const ry = renderPlayers[id].y;
+
+        if (id === myId) {
+            window.myLatestPos = { x: rx, y: ry }; 
+        }
+
+        if (p.isDead) {
+            delete renderPlayers[id]; // Ölen oyuncuyu temizle
+            continue;
+        }
 
         // Tank Gövdesi
         ctx.fillStyle = p.team === 'Red' ? '#e74c3c' : '#3498db';
-        ctx.fillRect(p.x - p.width / 2, p.y - p.height / 2, p.width, p.height);
+        ctx.fillRect(rx - p.width / 2, ry - p.height / 2, p.width, p.height);
 
-        // İsim etiketi (Konuşanın ismi yeşil yanar)
+        // İsim etiketi
         let nameColor = '#ecf0f1';
         if (window.speakingUsers && window.speakingUsers[id]) {
-            nameColor = '#2ecc71'; // Canlı yeşil
+            nameColor = '#2ecc71'; 
         }
         ctx.fillStyle = nameColor;
         ctx.font = nameColor === '#2ecc71' ? 'bold 14px Inter' : '12px Inter';
         ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y - p.height / 2 - 20);
+        ctx.fillText(p.name, rx, ry - p.height / 2 - 20);
 
-        // Spawn Shield (Neon Kalkan)
+        // Spawn Shield
         if (p.shieldTime > 0) {
             ctx.save();
             ctx.strokeStyle = '#3498db';
             ctx.lineWidth = 3;
             ctx.setLineDash([5, 5]);
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.width * 0.9, 0, Math.PI * 2);
+            ctx.arc(rx, ry, p.width * 0.9, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
         }
 
         // Can Barı
-        const hpBarY = p.y - p.height / 2 - 12;
+        const hpBarY = ry - p.height / 2 - 12;
         ctx.fillStyle = '#c0392b';
-        ctx.fillRect(p.x - p.width / 2, hpBarY, p.width, 5);
+        ctx.fillRect(rx - p.width / 2, hpBarY, p.width, 5);
         ctx.fillStyle = '#2ecc71';
-        ctx.fillRect(p.x - p.width / 2, hpBarY, p.width * (p.health / 100), 5);
+        ctx.fillRect(rx - p.width / 2, hpBarY, p.width * (p.health / 100), 5);
 
         // Heal efekti partikülü (yeşil çerçeve)
         if (p.isHealing) {
             ctx.strokeStyle = '#2ecc71';
             ctx.lineWidth = 3;
-            ctx.strokeRect(p.x - p.width / 2 - 4, p.y - p.height / 2 - 4, p.width + 8, p.height + 8);
+            ctx.strokeRect(rx - p.width / 2 - 4, ry - p.height / 2 - 4, p.width + 8, p.height + 8);
         }
 
         // Hız efekti
         if (p.isSpeedBoosted) {
             ctx.strokeStyle = '#3498db';
             ctx.lineWidth = 2;
-            ctx.strokeRect(p.x - p.width / 2 - 3, p.y - p.height / 2 - 3, p.width + 6, p.height + 6);
+            ctx.strokeRect(rx - p.width / 2 - 3, ry - p.height / 2 - 3, p.width + 6, p.height + 6);
         }
 
         // Kendi tankımızın etrafında parlayan bir çerçeve
         if (id === myId) {
             ctx.strokeStyle = '#f1c40f';
             ctx.lineWidth = 2;
-            ctx.strokeRect(p.x - p.width / 2 - 2, p.y - p.height / 2 - 2, p.width + 4, p.height + 4);
+            ctx.strokeRect(rx - p.width / 2 - 2, ry - p.height / 2 - 2, p.width + 4, ry - p.height / 2 - 2 + p.height + 4 - (ry - p.height / 2 - 2)); // Fix height calculation logic just in case
+            // Let's use standard rect
+            ctx.strokeRect(rx - p.width / 2 - 2, ry - p.height / 2 - 2, p.width + 4, p.height + 4);
         }
     }
 
