@@ -194,4 +194,9 @@ function renderGame(state, myId) {
             leaderboardEl.appendChild(row);
         });
     }
+
+    // Mesafe bazlı ses güncellemesi (Eğer voice.js yüklenmişse)
+    if (typeof updateVoiceProximity === 'function') {
+        updateVoiceProximity(state, myId);
+    }
 }

@@ -66,6 +66,7 @@ function startGame() {
     lobbyContainer.style.display = 'none';
     gameContainer.style.display = 'flex';
     initInput(socket);
+    initVoiceChat();
 }
 
 socket.on('gameState', (state) => {

@@ -1,0 +1,143 @@
+let localStream = null;
+const peers = {}; // socket.id -> RTCPeerConnection
+const audioElements = {}; // socket.id -> HTMLAudioElement
+
+// RTCPeerConnection konfigürasyonu (STUN server)
+const peerConnectionConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
+async function initVoiceChat() {
+    try {
+        // Kullanıcıdan mikrofon izni iste
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        console.log("Mikrofon izni alındı.");
+        
+        // Sunucuya sesli sohbete katıldığımızı bildir
+        socket.emit('voice-join');
+    } catch (err) {
+        console.warn("Mikrofon erişimi reddedildi veya bulunamadı:", err);
+    }
+}
+
+// Başka bir oyuncu koptuğunda bağlantısını temizle
+socket.on('voice-user-left', (userId) => {
+    if (peers[userId]) {
+        peers[userId].close();
+        delete peers[userId];
+    }
+    if (audioElements[userId]) {
+        audioElements[userId].remove();
+        delete audioElements[userId];
+    }
+});
+
+// Yeni bir kullanıcı katıldığında ona bir teklif (Offer) başlat
+socket.on('voice-user-joined', (userId) => {
+    if (!localStream) return;
+    createPeerConnection(userId, true);
+});
+
+// Gelen WebRTC sinyallerini işle (Offer, Answer, ICE Candidate)
+socket.on('voice-signal', async (data) => {
+    if (!localStream) return;
+    const { from, signal } = data;
+    
+    if (signal.type === 'offer') {
+        const pc = createPeerConnection(from, false);
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('voice-signal', { to: from, signal: { type: 'answer', sdp: pc.localDescription } });
+    } else if (signal.type === 'answer') {
+        if (peers[from]) {
+            await peers[from].setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        }
+    } else if (signal.type === 'ice') {
+        if (peers[from]) {
+            await peers[from].addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
+    }
+});
+
+function createPeerConnection(userId, isInitiator) {
+    if (peers[userId]) return peers[userId]; // Zaten varsa geri dön
+
+    const pc = new RTCPeerConnection(peerConnectionConfig);
+    peers[userId] = pc;
+    
+    // Lokal sesi karşı tarafa ekle
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    
+    // ICE adaylarını (network yolu tespiti) bulduğumuzda gönder
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('voice-signal', { to: userId, signal: { type: 'ice', candidate: event.candidate } });
+        }
+    };
+    
+    // Karşıdan bir ses/video track geldiğinde oynat
+    pc.ontrack = (event) => {
+        if (!audioElements[userId]) {
+            const audio = document.createElement('audio');
+            audio.autoplay = true;
+            // Sesin üst üste binmemesi için ilk başta sesi kısıyoruz
+            audio.volume = 0; 
+            document.body.appendChild(audio);
+            audioElements[userId] = audio;
+        }
+        audioElements[userId].srcObject = event.streams[0];
+    };
+    
+    // Offer oluşturan taraf isek
+    if (isInitiator) {
+        pc.onnegotiationneeded = async () => {
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit('voice-signal', { to: userId, signal: { type: 'offer', sdp: pc.localDescription } });
+            } catch (error) {
+                console.error("Offer oluştururken hata:", error);
+            }
+        };
+    }
+    
+    return pc;
+}
+
+// render.js içerisinde her karede (frame) çağrılacak fonksiyon
+// Mesafe bazlı (Proximity) ses ayarlaması yapar
+function updateVoiceProximity(state, myId) {
+    // Ölüysek veya oyunda değilsek etraftaki herkesin sesini duyabiliriz (ya da kapasabiliriz)
+    // Şimdilik hayattayken mesafeye göre ses kısalım
+    if (!state.players[myId] || state.players[myId].isDead) return;
+    
+    const myPos = { x: state.players[myId].x, y: state.players[myId].y };
+    const maxHearingDist = 600; // Sesi duyabilmek için max mesafe
+    
+    for (let id in audioElements) {
+        if (state.players[id]) {
+            const dx = state.players[id].x - myPos.x;
+            const dy = state.players[id].y - myPos.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            // Mesafeye göre ses hesaplama (Doğrusal formül)
+            // Yakındayken 1.0 (max), uzaklaştıkça 0'a düşer
+            let vol = 1.0 - (dist / maxHearingDist);
+            
+            // Eğer aramızda bir duvar varsa sesi daha hızlı düşürmek de mümkündür ama şimdilik sadece mesafe:
+            if (vol < 0) vol = 0;
+            if (vol > 1) vol = 1;
+
+            if (state.players[id].isDead) vol = 0; // Ölü oyuncuyu duyamayız
+            
+            audioElements[id].volume = vol;
+        } else {
+            // Eğer oyuncu haritada yoksa sesini sıfırla
+            audioElements[id].volume = 0;
+        }
+    }
+}

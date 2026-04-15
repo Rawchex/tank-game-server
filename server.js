@@ -59,6 +59,24 @@ io.on('connection', (socket) => {
         game.removePlayer(socket.id);
         lobby.removePlayer(socket.id);
         lobby.broadcastState(io);
+        
+        // Notify others to remove voice connection
+        socket.broadcast.emit('voice-user-left', socket.id);
+    });
+
+    // Sesli sohbet (Voice Chat) sinyalleri
+    socket.on('voice-join', () => {
+        // Mevcut diğer oyunculara yeni birinin sesli sohbete katıldığını bildir
+        socket.broadcast.emit('voice-user-joined', socket.id);
+    });
+
+    socket.on('voice-signal', (data) => {
+        // data.to: Sinyalin gideceği hedef socket.id
+        // data.signal: WebRTC sinyali (offer, answer, ice candidate)
+        io.to(data.to).emit('voice-signal', {
+            from: socket.id,
+            signal: data.signal
+        });
     });
 });
 
