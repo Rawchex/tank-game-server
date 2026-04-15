@@ -39,7 +39,7 @@ class Database {
             password: password,
             xp: 0,
             level: 1,
-            layouts: [null, null, null, null, null] // 5 slots max
+            layouts: [] // Unlimited named layouts
         };
         this.save();
         return { success: true, user: this.getUserData(username) };
@@ -62,10 +62,31 @@ class Database {
         };
     }
 
-    saveLayout(username, slotIndex, layoutData) {
+    saveLayout(username, name, layoutData) {
         if (!this.users[username]) return false;
-        if (slotIndex < 0 || slotIndex >= 5) return false;
-        this.users[username].layouts[slotIndex] = layoutData;
+        const layouts = this.users[username].layouts || [];
+        
+        // Update if exists, else push
+        const existing = layouts.findIndex(l => l.name === name);
+        if (existing !== -1) {
+            layouts[existing].data = layoutData;
+            layouts[existing].updatedAt = Date.now();
+        } else {
+            layouts.push({
+                id: Math.random().toString(36).substr(2, 9),
+                name: name,
+                data: layoutData,
+                createdAt: Date.now()
+            });
+        }
+        this.users[username].layouts = layouts;
+        this.save();
+        return true;
+    }
+
+    deleteLayout(username, layoutId) {
+        if (!this.users[username]) return false;
+        this.users[username].layouts = this.users[username].layouts.filter(l => l.id !== layoutId);
         this.save();
         return true;
     }

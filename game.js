@@ -10,12 +10,22 @@ class Game {
         this.explosions = [];
         this.FPS = 60;
 
-        // Custom map dynamic support
-        this.dynamicMap = { 
+        // Match Settings
+        this.killLimit = (roomData && roomData.settings && roomData.settings.killLimit) || 15;
+        this.timeRemaining = (roomData && roomData.settings && roomData.settings.timeLimit ? roomData.settings.timeLimit : 5) * 60; // seconds
+        this.isGameOver = false;
+        this.winner = null;
+
+        // Custom map support
+        this.dynamicMap = (roomData && roomData.settings && roomData.settings.layout) || { 
             theme: 'grass',
             walls: [], crates: [], bushes: [], tires: [],
             barrels: [], speedPads: [], spawns: []
         };
+
+        this.teamScores = { Red: 0, Blue: 0 };
+        this.frameCounter = 0; // To track seconds
+        this.botDiff = (roomData && roomData.settings && roomData.settings.botDiff) || 'medium';
 
         // Start game loop
         this.loopInterval = setInterval(() => this.update(), 1000 / this.FPS);
@@ -29,8 +39,9 @@ class Game {
                 return { x: s.x + s.width / 2, y: s.y + s.height / 2 };
             }
         }
-        const defaultSpawns = map.spawns[team] || map.spawns.Red;
-        return defaultSpawns[Math.floor(Math.random() * defaultSpawns.length)];
+        const defaultSpawns = map.spawns[team] || map.spawns.Red || [{x: 100, y: 100}];
+        const s = defaultSpawns[Math.floor(Math.random() * defaultSpawns.length)];
+        return { x: s.x, y: s.y };
     }
 
     destroy() {
@@ -59,7 +70,8 @@ class Game {
             speedBoostTimer: 0,
             hasRapidFire: false,
             rapidFireTimer: 0,
-            input: { w: false, a: false, s: false, d: false }
+            input: { w: false, a: false, s: false, d: false },
+            killedBy: null
         };
     }
 
@@ -67,6 +79,10 @@ class Game {
         if (!team) return;
         const spawnPos = this.getSpawnPos(team);
         const botId = `bot_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+        let speedMult = 1;
+        if (this.botDiff === 'easy') speedMult = 0.7;
+        if (this.botDiff === 'hard') speedMult = 1.3;
 
         this.players[botId] = {
             x: spawnPos.x,
@@ -76,7 +92,7 @@ class Game {
             health: 100,
             width: 30,
             height: 30,
-            speed: 4,
+            speed: 4 * speedMult,
             isDead: false,
             score: 0,
             isBot: true,
@@ -293,8 +309,34 @@ class Game {
         }
     }
 
+    checkWinCondition() {
+        if (this.isGameOver) return;
+
+        let winnerTeam = null;
+        if (this.teamScores.Red >= this.killLimit) winnerTeam = 'Red';
+        if (this.teamScores.Blue >= this.killLimit) winnerTeam = 'Blue';
+        if (this.timeRemaining <= 0) {
+            winnerTeam = (this.teamScores.Red >= this.teamScores.Blue) ? 'Red' : 'Blue';
+        }
+
+        if (winnerTeam) {
+            this.isGameOver = true;
+            this.winner = winnerTeam;
+            this.io.to(this.roomId).emit('gameOver', { winner: winnerTeam, scores: this.teamScores });
+        }
+    }
+
     update() {
-        // Enforce max 9 bots rule if humans are present
+        if (this.isGameOver) return;
+        
+        this.frameCounter++;
+        if (this.frameCounter >= 60) {
+            this.timeRemaining--;
+            this.frameCounter = 0;
+            this.checkWinCondition();
+        }
+
+        // Run AI behavior
         let humanCount = 0;
         let bots = [];
         for (let id in this.players) {
@@ -445,10 +487,14 @@ class Game {
 
                             if (p.health <= 0) {
                                 p.isDead = true;
+                                p.killedBy = b.owner;
 
-                                // Puanı atan oyuncuya ver
+                                // Puanı atan oyuncuya ve takıma ver
                                 if (this.players[b.owner]) {
                                     this.players[b.owner].score++;
+                                    const killersTeam = this.players[b.owner].team;
+                                    this.teamScores[killersTeam]++;
+                                    this.checkWinCondition();
                                 }
 
                                 this.handleRespawn(id);
@@ -469,7 +515,9 @@ class Game {
             players: this.players,
             bullets: this.bullets,
             explosions: this.explosions,
-            sandboxMap: this.dynamicMap // Pass sandbox layout if exists
+            sandboxMap: this.dynamicMap,
+            matchTime: this.timeRemaining,
+            teamScores: this.teamScores
         });
 
         this.explosions = [];

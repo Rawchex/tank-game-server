@@ -244,6 +244,37 @@ function renderGame(state, myId) {
 
     let allPlayers = [];
 
+    // --- HUD: MATCH INTEL ---
+    if (gameState.matchTime !== undefined) {
+        ctx.save();
+        ctx.fillStyle = "white";
+        ctx.font = "bold 24px 'Inter', sans-serif";
+        ctx.textAlign = "center";
+        const mins = Math.floor(gameState.matchTime / 60);
+        const secs = gameState.matchTime % 60;
+        ctx.fillText(`${mins}:${secs < 10 ? '0' : ''}${secs}`, canvas.width / 2, 40);
+        ctx.restore();
+    }
+
+    if (gameState.teamScores) {
+        ctx.save();
+        ctx.font = "bold 20px 'Inter', sans-serif";
+        
+        // Red Score (Left)
+        ctx.fillStyle = "#e74c3c";
+        ctx.textAlign = "left";
+        ctx.fillText(`RED: ${gameState.teamScores.Red}`, 20, 40);
+        
+        // Blue Score (Right)
+        ctx.fillStyle = "#3498db";
+        ctx.textAlign = "right";
+        ctx.fillText(`BLUE: ${gameState.teamScores.Blue}`, canvas.width - 20, 40);
+        ctx.restore();
+    }
+
+    // --- OTHER HUD (Scores, Skills) ---
+    renderScores(gameState.players);
+
     // Oyuncuları Çiz
     for (let id in state.players) {
         let p = state.players[id];

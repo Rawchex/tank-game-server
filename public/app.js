@@ -217,14 +217,98 @@ socket.on('roomsList', (rooms) => {
     });
 });
 
-/* --- CREATE ROOM MODAL --- */
-const createRoomModal = document.getElementById('create-room-modal');
-document.getElementById('create-room-btn').addEventListener('click', () => createRoomModal.style.display = 'flex');
+/* --- MAIN MENU EXTENSIONS --- */
+document.getElementById('main-map-editor-btn').addEventListener('click', () => {
+    browserScreen.style.display = 'none';
+    gameScreen.style.display = 'block';
+    window.isMapEditorActive = true;
+    document.getElementById('sandbox-editor-ui').style.display = 'flex';
+    document.getElementById('skills-ui').style.display = 'none';
+    document.getElementById('score-panel').style.display = 'none';
+    
+    // Reset or load default layout
+    window.dynamicSandboxData = { theme: 'grass', walls: [], crates: [], bushes: [], tires: [], barrels: [], speedPads: [], spawns: [] };
+});
+
+document.getElementById('btn-close-editor').addEventListener('click', () => {
+    window.isMapEditorActive = false;
+    document.getElementById('sandbox-editor-ui').style.display = 'none';
+    document.getElementById('skills-ui').style.display = 'flex';
+    document.getElementById('score-panel').style.display = 'flex';
+    
+    // If we were in standalone mode, go back to lobby
+    if (!window.activeRoomId) {
+        gameScreen.style.display = 'none';
+        browserScreen.style.display = 'block';
+    }
+});
+
+const gameOverOverlay = document.getElementById('game-over-overlay');
+const winnerText = document.getElementById('winner-team-text');
+const finalRed = document.getElementById('final-score-red');
+const finalBlue = document.getElementById('final-score-blue');
+
+socket.on('gameOver', (data) => {
+    gameOverOverlay.style.display = 'flex';
+    winnerText.innerText = `${data.winner.toUpperCase()} TEAM WINS!`;
+    winnerText.style.color = data.winner === 'Red' ? '#e74c3c' : '#3498db';
+    finalRed.innerText = data.scores.Red;
+    finalBlue.innerText = data.scores.Blue;
+});
+
+document.getElementById('return-to-lobby-btn').addEventListener('click', () => {
+    gameOverOverlay.style.display = 'none';
+    gameScreen.style.display = 'none';
+    browserScreen.style.display = 'block';
+    socket.emit('leaveRoom');
+});
+const newRoomMode = document.getElementById('new-room-mode');
+const layoutSection = document.getElementById('layout-selection-section');
+const hostLayoutList = document.getElementById('host-layout-list');
+
+newRoomMode.addEventListener('change', () => {
+    layoutSection.style.display = newRoomMode.value === 'sandbox' ? 'block' : 'none';
+    if (newRoomMode.value === 'sandbox') refreshHostLayoutList();
+});
+
+function refreshHostLayoutList() {
+    hostLayoutList.innerHTML = '';
+    if (!window.myAccount || !window.myAccount.layouts || window.myAccount.layouts.length === 0) {
+        hostLayoutList.innerHTML = '<div style="color:#7f8c8d; font-size:12px; text-align:center;">No layouts found.</div>';
+        return;
+    }
+    window.myAccount.layouts.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'layout-item';
+        div.style = 'padding:10px; background:rgba(255,255,255,0.05); border-radius:6px; cursor:pointer; display:flex; justify-content:space-between;';
+        div.innerHTML = `<span>${l.name}</span> <span style="font-size:10px; color:#bdc3c7;">${new Date(l.createdAt).toLocaleDateString()}</span>`;
+        div.onclick = () => {
+            document.querySelectorAll('.layout-item').forEach(i => i.style.background = 'rgba(255,255,255,0.05)');
+            div.style.background = 'var(--primary)';
+            window.selectedHostLayout = l.data;
+        };
+        hostLayoutList.appendChild(div);
+    });
+}
+
+document.getElementById('create-room-btn').addEventListener('click', () => {
+    createRoomModal.style.display = 'flex';
+    refreshHostLayoutList();
+});
+
 document.getElementById('cancel-create-room').addEventListener('click', () => createRoomModal.style.display = 'none');
+
 document.getElementById('confirm-create-room').addEventListener('click', () => {
     if (!window.myAccount) return;
     const rname = document.getElementById('new-room-name').value.trim() || 'Epic Battle';
-    const settings = { mode: document.getElementById('new-room-mode').value };
+    const settings = { 
+        mode: newRoomMode.value,
+        killLimit: parseInt(document.getElementById('match-kill-limit').value),
+        timeLimit: parseInt(document.getElementById('match-time-limit').value),
+        botCount: parseInt(document.getElementById('match-bot-count').value),
+        botDiff: document.getElementById('match-bot-diff').value,
+        layout: (newRoomMode.value === 'sandbox') ? window.selectedHostLayout : null
+    };
     socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
     createRoomModal.style.display = 'none';
 });
@@ -435,14 +519,15 @@ document.getElementById('editor-theme-select').addEventListener('change', (e) =>
 
 // Save Map
 document.getElementById('btn-save-layout').addEventListener('click', () => {
-    if(window.dynamicSandboxData && window.myAccount) {
-        const slot = parseInt(document.getElementById('save-layout-slot').value);
+    if (!window.myAccount) return;
+    const mapName = prompt("Enter a name for this layout:", "My Epic Map");
+    if (mapName) {
         socket.emit('saveLayout', {
             username: window.myAccount.name,
-            slot: slot,
+            name: mapName,
             layout: window.dynamicSandboxData
         });
-        alert(`Layout successfully sent to server to override Slot ${slot + 1}!`);
+        alert("Layout saved to library!");
     }
 });
 

@@ -34,7 +34,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('saveLayout', (data) => {
-        if (db.saveLayout(data.username, data.slot, data.layout)) {
+        if (db.saveLayout(data.username, data.name, data.layout)) {
+            socket.emit('userDataUpdate', db.getUserData(data.username));
+        }
+    });
+
+    socket.on('deleteLayout', (data) => {
+        if (db.deleteLayout(data.username, data.layoutId)) {
             socket.emit('userDataUpdate', db.getUserData(data.username));
         }
     });
