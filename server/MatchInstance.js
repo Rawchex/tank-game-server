@@ -60,10 +60,39 @@ class MatchInstance {
         };
     }
 
+    removePlayer(socketId) {
+        if (this.players[socketId]) {
+            delete this.players[socketId];
+        }
+    }
+
     handlePlayerInput(socketId, input) {
         if (this.players[socketId]) {
+            // Merge regular movement/fire
             this.players[socketId].input = { ...this.players[socketId].input, ...input };
             if (input.angle !== undefined) this.players[socketId].angle = input.angle;
+            
+            // Skill trigger (One-time event)
+            if (input.skill) {
+                this.handleSkill(socketId, input.skill);
+            }
+        }
+    }
+
+    handleSkill(socketId, skill) {
+        const p = this.players[socketId];
+        if (!p || p.isDead) return;
+
+        switch(skill) {
+            case 'z': // HEAL
+                p.health = Math.min(Config.MAX_HEALTH, p.health + 25);
+                break;
+            case 'x': // SPEED
+                p.speedBoostTime = 180; // 3 seconds at 60fps
+                break;
+            case 'c': // RAPID FIRE
+                p.rapidFireTime = 180;
+                break;
         }
     }
 
@@ -108,6 +137,11 @@ class MatchInstance {
         };
     }
 
+    removeBot(team) {
+        const botId = Object.keys(this.players).find(id => id.startsWith('bot_') && this.players[id].team === team);
+        if (botId) delete this.players[botId];
+    }
+
     getSpawn(team) {
         // Shared logic with Sandbox spawns
         const custom = (this.dynamicMap.spawns || []).filter(s => s.type === (team === 'Red' ? 'redSpawn' : 'blueSpawn'));
@@ -141,6 +175,11 @@ class MatchInstance {
 
             if (p.isBot) this.ai.update(id, p);
 
+            // Handle temporary effects
+            if (p.speedBoostTime > 0) p.speedBoostTime--;
+            if (p.rapidFireTime > 0) p.rapidFireTime--;
+            if (p.shieldTime > 0) p.shieldTime--;
+
             this.handlePlayerMovement(p);
             this.handlePlayerCombat(id, p);
         }
@@ -162,10 +201,12 @@ class MatchInstance {
 
     handlePlayerMovement(p) {
         let dx = 0, dy = 0;
-        if (p.input.w) dy -= Config.TANK_SPEED;
-        if (p.input.s) dy += Config.TANK_SPEED;
-        if (p.input.a) dx -= Config.TANK_SPEED;
-        if (p.input.d) dx += Config.TANK_SPEED;
+        const speed = p.speedBoostTime > 0 ? Config.TANK_SPEED * 1.5 : Config.TANK_SPEED;
+        
+        if (p.input.w) dy -= speed;
+        if (p.input.s) dy += speed;
+        if (p.input.a) dx -= speed;
+        if (p.input.d) dx += speed;
 
         if (dx !== 0 || dy !== 0) {
             const nextX = p.x + dx;
@@ -198,8 +239,10 @@ class MatchInstance {
 
     handlePlayerCombat(id, p) {
         if (p.input.fire && !p.isDead) {
-            // Simplified reloading for server logic
-            if (!p.lastFire || Date.now() - p.lastFire > 750) {
+            const reload = p.rapidFireTime > 0 ? Config.RELOAD_TIME / 2 : Config.RELOAD_TIME;
+            const msReload = (reload / 60) * 1000;
+            
+            if (!p.lastFire || Date.now() - p.lastFire > msReload) {
                 this.bullets.push({
                     x: p.x, y: p.y,
                     vx: Math.cos(p.angle) * Config.BULLET_SPEED,

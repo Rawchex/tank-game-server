@@ -94,16 +94,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('shoot', (angle) => {
-        const game = roomManager.getGame(socket);
-        if (game) game.handleShoot(socket.id, angle);
-    });
-
-    socket.on('useSkill', (skill) => {
-        const game = roomManager.getGame(socket);
-        if (game) game.handleSkill(socket.id, skill);
-    });
-
     socket.on('addBot', (team) => {
         roomManager.addBot(socket, team);
     });

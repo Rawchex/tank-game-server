@@ -89,7 +89,7 @@ class RoomManager {
             room.players[socket.id].name = name;
             // Add to game
             if (room.game) {
-                room.game.addPlayer(socket, room.players[socket.id]);
+                room.game.addPlayer(socket.id, room.players[socket.id]);
             }
             this.broadcastLobbyState(roomId);
         }
