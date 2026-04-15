@@ -141,9 +141,21 @@ function updateLayoutDropdowns() {
 }
 
 /* --- MAIN MENU NAVIGATION --- */
+window.navigationContext = 'classic'; // 'classic' or 'sandbox'
+
 document.getElementById('btn-play-online').addEventListener('click', () => {
+    window.navigationContext = 'classic';
     showScreen('browser-screen');
     socket.emit('getRooms');
+});
+
+document.getElementById('btn-map-editor').addEventListener('click', () => {
+    window.navigationContext = 'sandbox';
+    if (!window.myAccount) return;
+    // Auto-host a sandbox
+    const rname = `${window.myAccount.name}'s Creative Map`;
+    const settings = { mode: 'sandbox' };
+    socket.emit('createRoom', { roomName: rname, settings: settings, playerName: window.myAccount.name });
 });
 
 document.getElementById('btn-profile').addEventListener('click', () => {
@@ -168,13 +180,23 @@ document.getElementById('refresh-rooms-btn').addEventListener('click', () => soc
 
 socket.on('roomsList', (rooms) => {
     roomsList.innerHTML = '';
-    if (rooms.length === 0) {
-        roomsList.innerHTML = '<li style="justify-content:center; color:#7f8c8d;">No active rooms found. Please host one!</li>';
+    
+    // Update Title UI
+    const titleEl = document.querySelector('#browser-screen h2');
+    if (titleEl) {
+        titleEl.innerText = window.navigationContext === 'classic' ? '🌐 Classic Battle Server' : '🛠️ Sandbox Creations';
+    }
+
+    // Filter rooms based on where we are
+    const filtered = rooms.filter(r => r.mode === window.navigationContext);
+    
+    if (filtered.length === 0) {
+        roomsList.innerHTML = `<li style="justify-content:center; color:#7f8c8d;">No ${window.navigationContext} rooms found.</li>`;
         return;
     }
-    rooms.forEach(r => {
+    filtered.forEach(r => {
         const li = document.createElement('li');
-        li.innerHTML = `<div><strong>${r.name}</strong> <span class="subtext" style="margin-left: 10px;">(${r.playerCount}/10 Players) - [${r.mode.toUpperCase()}]</span></div> 
+        li.innerHTML = `<div><strong>${r.name}</strong> <span class="subtext" style="margin-left: 10px;">(${r.playerCount}/10 Players)</span></div> 
                         <button class="btn-primary join-room-btn" data-id="${r.id}">Join Battle</button>`;
         roomsList.appendChild(li);
     });
@@ -209,7 +231,14 @@ const sandboxHostPanel = document.getElementById('sandbox-host-panel');
 
 socket.on('roomJoined', (roomId) => {
     currentRoomId = roomId;
-    showScreen('lobby-screen');
+    if (window.navigationContext === 'sandbox') {
+        // Direct jump to editor
+        window.isEditingMap = true;
+        document.getElementById('map-editor-toolbar').style.display = 'block';
+        startGame();
+    } else {
+        showScreen('lobby-screen');
+    }
 });
 
 socket.on('lobbyState', (players) => {
@@ -394,6 +423,15 @@ document.getElementById('btn-save-layout').addEventListener('click', () => {
             layout: window.dynamicSandboxData
         });
         alert(`Layout successfully sent to server to override Slot ${slot + 1}!`);
+    }
+});
+
+document.getElementById('btn-clear-map').addEventListener('click', () => {
+    if (!isRoomAdmin) return;
+    if (confirm("Are you sure you want to CLEAR the entire map?")) {
+        const emptyMap = { walls: [], crates: [], bushes: [], tires: [] };
+        window.dynamicSandboxData = emptyMap;
+        socket.emit('sandbox-update', emptyMap);
     }
 });
 
