@@ -1,6 +1,6 @@
 /**
- * Tank Engine 2.0 - Modular Renderer
- * Handles layered drawing and visual effects.
+ * Tank Engine 2.0 - Modular Renderer (Premium Edition)
+ * Handles layered drawing with neon glows and high-fidelity effects.
  */
 class Renderer {
     constructor(canvas, config) {
@@ -32,18 +32,17 @@ class Renderer {
         // Apply Camera Transform
         this.ctx.translate(-this.cameraOffset.x, -this.cameraOffset.y);
 
-        // 2. LAYER 1: Background & Environment
+        // 2. LAYER 1: Environment
         this.renderEnvironment(state);
 
-        // 3. LAYER 2: Decals & Effects (Explosions/Particles)
+        // 3. LAYER 2: Decals & Effects
         this.renderEffects(state);
 
-        // 4. LAYER 3: Entities (Tanks/Bullets)
+        // 4. LAYER 3: Entities
         this.renderEntities(state, myId);
 
-        // 5. LAYER 4: UI / HUD (Names/Bars) - Handled separately in world space
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset for HUD if needed, or keep in world space
-        this.renderOverlay(state, myId);
+        // 5. LAYER 4: World-Space Overlay (Nameplates)
+        this.renderWorldOverlay(state, myId);
     }
 
     updateCamera(state, myId) {
@@ -62,7 +61,7 @@ class Renderer {
         let camX = targetX - this.canvas.width / 2;
         let camY = targetY - this.canvas.height / 2;
 
-        // Clamp
+        // Clamp to map bounds
         camX = Math.max(0, Math.min(camX, this.config.MAP_WIDTH - this.canvas.width));
         camY = Math.max(0, Math.min(camY, this.config.MAP_HEIGHT - this.canvas.height));
 
@@ -73,12 +72,12 @@ class Renderer {
         const map = state.sandboxMap || { theme: 'grass', walls: [] };
         const theme = map.theme || 'grass';
         
-        // Background Fill
+        // Background
         this.ctx.fillStyle = this.getThemeColor(theme);
         this.ctx.fillRect(0, 0, this.config.MAP_WIDTH, this.config.MAP_HEIGHT);
 
-        // Grid lines
-        this.ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        // Tech Grid
+        this.ctx.strokeStyle = 'rgba(255,255,255,0.03)';
         this.ctx.lineWidth = 1;
         for (let x = 0; x < this.config.MAP_WIDTH; x += 100) {
             this.ctx.beginPath(); this.ctx.moveTo(x, 0); this.ctx.lineTo(x, this.config.MAP_HEIGHT); this.ctx.stroke();
@@ -87,22 +86,26 @@ class Renderer {
             this.ctx.beginPath(); this.ctx.moveTo(0, y); this.ctx.lineTo(this.config.MAP_WIDTH, y); this.ctx.stroke();
         }
 
-        // Walls
-        this.ctx.fillStyle = '#2c3e50';
+        // Walls (Obsidian Style)
+        this.ctx.fillStyle = '#0f172a';
+        this.ctx.shadowBlur = 0;
         for (let w of (map.walls || [])) {
             this.ctx.fillRect(w.x, w.y, w.width, w.height);
+            this.ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            this.ctx.strokeRect(w.x, w.y, w.width, w.height);
         }
+        
         // Crates
-        this.ctx.fillStyle = '#d35400';
+        this.ctx.fillStyle = '#334155';
         for (let c of (map.crates || [])) {
             this.ctx.fillRect(c.x, c.y, c.width, c.height);
-            this.ctx.strokeStyle = '#e67e22';
-            this.ctx.strokeRect(c.x + 2, c.y + 2, c.width - 4, c.height - 4);
+            this.ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            this.ctx.strokeRect(c.x + 4, c.y + 4, c.width - 8, c.height - 8);
         }
     }
 
     renderEntities(state, myId) {
-        // Players with LERP
+        // Players
         for (let id in state.players) {
             const p = state.players[id];
             if (!this.renderPlayers[id]) {
@@ -117,107 +120,108 @@ class Renderer {
 
             const rx = this.renderPlayers[id].x;
             const ry = this.renderPlayers[id].y;
+            const isBlue = p.team === 'Blue';
 
-            // Draw Tank
+            // Tank Glow
+            this.ctx.shadowBlur = 15;
+            this.ctx.shadowColor = isBlue ? 'hsla(190, 100%, 50%, 0.5)' : 'hsla(340, 100%, 50%, 0.5)';
+
             this.ctx.save();
             this.ctx.translate(rx, ry);
             this.ctx.rotate(this.renderPlayers[id].angle);
-            this.ctx.fillStyle = p.team === 'Red' ? '#e74c3c' : '#3498db';
+            
+            // Body
+            this.ctx.fillStyle = isBlue ? 'hsl(190, 100%, 50%)' : 'hsl(340, 100%, 50%)';
             this.ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height);
-            // Barrel
-            this.ctx.fillStyle = '#333';
-            this.ctx.fillRect(0, -4, 25, 8);
+            
+            // Barrel (Darker)
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillRect(0, -3, 22, 6);
             this.ctx.restore();
-
-            // Status Effects (Shield)
+            
+            this.ctx.shadowBlur = 0;
+            
+            // Shield Effect
             if (p.shieldTime > 0) {
-                this.ctx.strokeStyle = '#3498db';
-                this.ctx.setLineDash([5, 5]);
+                this.ctx.strokeStyle = isBlue ? 'hsl(190, 100%, 50%)' : 'hsl(340, 100%, 50%)';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([4, 4]);
                 this.ctx.beginPath();
-                this.ctx.arc(rx, ry, p.width * 0.9, 0, Math.PI * 2);
+                this.ctx.arc(rx, ry, p.width * 1.1, 0, Math.PI * 2);
                 this.ctx.stroke();
                 this.ctx.setLineDash([]);
             }
         }
 
-        // Bullets
-        this.ctx.fillStyle = '#f1c40f';
+        // Bullets (Neon)
         for (let b of (state.bullets || [])) {
+            const isBlue = b.team === 'Blue';
+            this.ctx.fillStyle = '#fff';
+            this.ctx.shadowBlur = 10;
+            this.ctx.shadowColor = isBlue ? 'hsl(190, 100%, 50%)' : 'hsl(340, 100%, 50%)';
             this.ctx.beginPath();
             this.ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
             this.ctx.fill();
+            this.ctx.shadowBlur = 0;
         }
     }
 
     renderEffects(state) {
-        // Handle Explosions from state to particles
         if (state.explosions) {
             for (let ex of state.explosions) {
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < 12; i++) {
                     this.particles.push({
                         x: ex.x, y: ex.y,
-                        vx: (Math.random() - 0.5) * 6,
-                        vy: (Math.random() - 0.5) * 6,
+                        vx: (Math.random() - 0.5) * 8,
+                        vy: (Math.random() - 0.5) * 8,
                         life: 1.0, color: ex.color
                     });
                 }
             }
         }
 
-        // Particle update & draw
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
-            p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+            p.x += p.vx; p.y += p.vy; p.life -= 0.03;
             if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+            
             this.ctx.globalAlpha = p.life;
-            this.ctx.fillStyle = p.color || '#e74c3c';
-            this.ctx.fillRect(p.x, p.y, 4, 4);
+            this.ctx.fillStyle = p.color || '#fff';
+            this.ctx.fillRect(p.x, p.y, 5, 5);
         }
         this.ctx.globalAlpha = 1.0;
     }
 
-    renderOverlay(state, myId) {
-        const transX = -this.cameraOffset.x;
-        const transY = -this.cameraOffset.y;
-
+    renderWorldOverlay(state, myId) {
         for (let id in state.players) {
             const p = state.players[id];
             if (p.isDead) continue;
 
-            const rx = (this.renderPlayers[id]?.x || p.x) + transX;
-            const ry = (this.renderPlayers[id]?.y || p.y) + transY;
+            const rx = this.renderPlayers[id]?.x || p.x;
+            const ry = (this.renderPlayers[id]?.y || p.y) - 35;
 
             // Name
             const isSpeaking = window.speakingUsers && window.speakingUsers[id];
-            this.ctx.fillStyle = isSpeaking ? '#2ecc71' : '#fff';
-            this.ctx.font = isSpeaking ? 'bold 13px Inter' : '11px Inter';
+            this.ctx.fillStyle = isSpeaking ? 'hsl(150, 100%, 50%)' : '#fff';
+            this.ctx.font = `600 ${isSpeaking ? '14px' : '12px'} Outfit`;
             this.ctx.textAlign = 'center';
-            this.ctx.fillText(p.name, rx, ry - 35);
+            this.ctx.fillText(p.name.toUpperCase(), rx, ry);
 
-            // HP Bar
-            this.ctx.fillStyle = '#c0392b';
-            this.ctx.fillRect(rx - 15, ry - 30, 30, 4);
-            this.ctx.fillStyle = '#2ecc71';
-            this.ctx.fillRect(rx - 15, ry - 30, 30 * (p.health / 100), 4);
-        }
-        
-        // Pause UI
-        if (state.paused) {
+            // Tech HP Bar
+            const barW = 34;
             this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = 'bold 40px Inter';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText("MATCH PAUSED", this.canvas.width/2, this.canvas.height/2);
+            this.ctx.fillRect(rx - barW/2, ry + 6, barW, 4);
+            this.ctx.fillStyle = (p.health > 40) ? 'hsl(190, 100%, 50%)' : 'hsl(340, 100%, 50%)';
+            this.ctx.fillRect(rx - barW/2, ry + 6, barW * (p.health / 100), 4);
         }
     }
 
     getThemeColor(theme) {
         switch(theme) {
-            case 'desert': return '#e67e22';
-            case 'space': return '#0a0a0f';
-            case 'winter': return '#ecf0f1';
-            default: return '#1e824c';
+            case 'desert': return '#1a1a05'; // Dark Desert
+            case 'space': return '#050510';  // Void
+            case 'grass': return '#0a1a10';  // Deep Forest
+            default: return '#0a101a';
         }
     }
 }
