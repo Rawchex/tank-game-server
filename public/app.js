@@ -222,6 +222,10 @@ socket.on('lobbyState', (players) => {
     if (players[socket.id] && players[socket.id].isHost) {
         isRoomAdmin = true;
         adminControls.style.display = 'block';
+        ['add-bot-red', 'add-bot-blue', 'remove-bot-red', 'remove-bot-blue'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'inline-block';
+        });
         // Check sandbox mode for layout
         if (window.latestGameSettings && window.latestGameSettings.mode === 'sandbox') {
             sandboxHostPanel.style.display = 'block';
@@ -231,6 +235,10 @@ socket.on('lobbyState', (players) => {
     } else {
         isRoomAdmin = false;
         adminControls.style.display = 'none';
+        ['add-bot-red', 'add-bot-blue', 'remove-bot-red', 'remove-bot-blue'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
     }
 
     for (let id in players) {
@@ -243,6 +251,7 @@ socket.on('lobbyState', (players) => {
         }
 
         let displayName = p.name || `Player_${id.substring(0, 4)}`;
+        if (p.isBot) displayName = "🤖 " + displayName + " [BOT]";
         if (id === socket.id) displayName += " <span style='color:var(--success)'>(You)</span>";
         if (p.isHost) displayName = "👑 " + displayName;
 
@@ -310,18 +319,19 @@ socket.on('gameState', (state) => {
        sandboxHostPanel.style.display = window.latestGameSettings.mode === 'sandbox' ? 'block' : 'none';
     }
 
-    if (isRoomAdmin && typeof document !== 'undefined') {
-        const gameScreen = document.getElementById('game-screen');
-        const adminPanel = document.getElementById('ingame-admin');
-        if (gameScreen && gameScreen.style.display !== 'none' && adminPanel) {
-            adminPanel.style.display = 'block';
-        } else if (adminPanel) {
-            adminPanel.style.display = 'none';
-        }
-    }
-
     if ((myTeam || window.isEditingMap) && typeof renderGame === 'function') {
         renderGame(state, socket.id);
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+        const gameScreen = document.getElementById('game-screen');
+        if (gameScreen && gameScreen.style.display !== 'none' && isRoomAdmin) {
+            e.preventDefault(); // Prevent browser focus shifting
+            const p = document.getElementById('ingame-admin');
+            if (p) p.style.display = (p.style.display === 'none') ? 'block' : 'none';
+        }
     }
 });
 

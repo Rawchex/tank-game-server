@@ -101,11 +101,46 @@ class RoomManager {
 
     broadcastLobbyState(roomId) {
         if (this.rooms[roomId]) {
-            this.io.to(roomId).emit('lobbyState', this.rooms[roomId].players);
+            const players = { ...this.rooms[roomId].players };
+            // Include bots from the game instance in the lobby listing
+            if (this.rooms[roomId].game && this.rooms[roomId].game.players) {
+                for (let id in this.rooms[roomId].game.players) {
+                    if (id.startsWith('bot_')) {
+                        const bot = this.rooms[roomId].game.players[id];
+                        players[id] = { 
+                            name: bot.name, 
+                            team: bot.team, 
+                            isHost: false,
+                            isBot: true 
+                        };
+                    }
+                }
+            }
+            this.io.to(roomId).emit('lobbyState', players);
         }
     }
     
     // Admin Controls
+    addBot(socket, team) {
+        const roomId = this.playersToRoom[socket.id];
+        if (roomId && this.rooms[roomId] && this.rooms[roomId].hostId === socket.id) {
+            if (this.rooms[roomId].game) {
+                this.rooms[roomId].game.addBot(team);
+                this.broadcastLobbyState(roomId);
+            }
+        }
+    }
+
+    removeBot(socket, team) {
+        const roomId = this.playersToRoom[socket.id];
+        if (roomId && this.rooms[roomId] && this.rooms[roomId].hostId === socket.id) {
+            if (this.rooms[roomId].game) {
+                this.rooms[roomId].game.removeBot(team);
+                this.broadcastLobbyState(roomId);
+            }
+        }
+    }
+
     kickPlayer(socket, targetId) {
         const roomId = this.playersToRoom[socket.id];
         if (roomId && this.rooms[roomId] && this.rooms[roomId].hostId === socket.id) {

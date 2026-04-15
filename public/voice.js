@@ -47,8 +47,9 @@ const peerConnectionConfig = {
 };
 
 async function initVoiceChat() {
+    if (localStream) return; // ALREADY INITIALIZED! Prevent double STUN calls.
     try {
-        // Kullanıcıdan optimize edilmiş mikrofon izni iste (gürültü engelleme, yankı önleme, düşük örnekleme)
+        // ... optimize
         localStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
                 echoCancellation: true,
@@ -66,6 +67,7 @@ async function initVoiceChat() {
         // Sunucuya sesli sohbete katıldığımızı bildir
         socket.emit('voice-join');
     } catch (err) {
+        alert("Mikrofon izni reddedildi. Sesli sohbete katılamayacaksınız.");
         console.warn("Mikrofon erişimi reddedildi veya bulunamadı:", err);
     }
 }
@@ -158,25 +160,32 @@ function createPeerConnection(userId, isInitiator) {
 // render.js içerisinde her karede (frame) çağrılacak fonksiyon
 // Mesafe bazlı (Proximity) ses ayarlaması yapar
 function updateVoiceProximity(state, myId) {
-    // Ölüysek veya oyunda değilsek etraftaki herkesin sesini duyabiliriz (ya da kapasabiliriz)
-    // Şimdilik hayattayken mesafeye göre ses kısalım
-    if (!state.players[myId] || state.players[myId].isDead) return;
+    const isSpectatorOrDead = !state.players[myId] || state.players[myId].isDead;
+    let myPos = null;
+
+    if (!isSpectatorOrDead) {
+        myPos = { x: state.players[myId].x, y: state.players[myId].y };
+    } else if (window.isEditingMap && window.myEditorPos) {
+        myPos = window.myEditorPos; // Use camera pos for hearing
+    }
     
-    const myPos = { x: state.players[myId].x, y: state.players[myId].y };
     const maxHearingDist = 600; // Sesi duyabilmek için max mesafe
     
     for (let id in audioElements) {
         if (state.players[id]) {
-            const dx = state.players[id].x - myPos.x;
-            const dy = state.players[id].y - myPos.y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            let vol = 1.0;
             
-            // Mesafeye göre ses hesaplama (Doğrusal formül)
-            // Yakındayken 1.0 (max), uzaklaştıkça 0'a düşer
-            let vol = 1.0 - (dist / maxHearingDist);
-            
-            // Eğer aramızda bir duvar varsa sesi daha hızlı düşürmek de mümkündür ama şimdilik sadece mesafe:
-            if (vol < 0) vol = 0;
+            if (myPos) {
+                const dx = state.players[id].x - myPos.x;
+                const dy = state.players[id].y - myPos.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                vol = 1.0 - (dist / maxHearingDist);
+                if (vol < 0) vol = 0;
+            } else {
+                // If completely dead, grant them 50% global volume
+                vol = 0.5;
+            }
+
             if (vol > 1) vol = 1;
 
             // Global ses ayarını (Master Volume) uygula

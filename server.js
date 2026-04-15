@@ -90,13 +90,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('addBot', (team) => {
-        const game = roomManager.getGame(socket);
-        if (game) game.addBot(team);
+        roomManager.addBot(socket, team);
     });
 
     socket.on('removeBot', (team) => {
-        const game = roomManager.getGame(socket);
-        if (game) game.removeBot(team);
+        roomManager.removeBot(socket, team);
     });
 
     socket.on('sandbox-update', (dynamicMap) => {
@@ -120,8 +118,11 @@ io.on('connection', (socket) => {
 
     // Sesli sohbet (Voice Chat) sinyalleri
     socket.on('voice-join', () => {
-        // Mevcut diğer oyunculara yeni birinin sesli sohbete katıldığını bildir
-        socket.broadcast.emit('voice-user-joined', socket.id);
+        // Sadece bulunduğumuz odadaki diğer kullanıcılara gitmeli
+        const roomId = roomManager.getRoomId(socket);
+        if (roomId) {
+            socket.to(roomId).emit('voice-user-joined', socket.id);
+        }
     });
 
     socket.on('voice-signal', (data) => {
